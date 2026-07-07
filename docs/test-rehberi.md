@@ -50,8 +50,18 @@ python -m uvicorn psikiyatri_ai.api.main:app --reload
 
 Sunucu açılınca tarayıcıda:
 
-### En kolayı — Swagger arayüzü: http://127.0.0.1:8000/docs
-Kod yazmadan `/predict`'e tıkla → **Try it out** → örnek JSON gönder → yanıtı gör.
+### 🖥️ En kolayı — Görsel demo arayüzü: http://127.0.0.1:8000/
+Tarayıcıda açılan panelden **senaryo seç** (Kontrol / Depresyon / Rastgele),
+**modaliteleri aç-kapat**, **sinyal gücünü** ayarla ve **Analiz Et**'e bas.
+Sonuç canlı olarak gösterilir: tahmin, olasılık çubukları, modalite katkı
+ağırlıkları ve modaliteler arası uyumsuzluk göstergesi. Hiç kod gerekmez.
+
+> Not: Demo, senaryoya uygun **sentetik** bir seans üretip eğitilmiş modelden
+> geçirir. "Depresyon benzeri" senaryoda model doğru sınıfı yüksek güvenle
+> tahmin etmeli ve dikkatini **ses** modalitesine yöneltmelidir.
+
+### Alternatif — Swagger arayüzü: http://127.0.0.1:8000/docs
+Kod yazmadan `/predict` veya `/demo/predict`'e tıkla → **Try it out** → gönder → yanıtı gör.
 
 Örnek istek gövdesi:
 ```json

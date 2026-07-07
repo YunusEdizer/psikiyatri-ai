@@ -78,8 +78,10 @@ copy .env.example .env
 ## Kullanım
 
 ```bash
-# API servisini başlat
+# API servisini + görsel demo arayüzünü başlat
 uvicorn psikiyatri_ai.api.main:app --reload
+#   → Web arayüzü:  http://127.0.0.1:8000/
+#   → API dokümanı: http://127.0.0.1:8000/docs
 
 # Testleri çalıştır
 pytest

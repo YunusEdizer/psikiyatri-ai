@@ -18,6 +18,22 @@ class PredictRequest(BaseModel):
     text_embedding: list[float] | None = None
 
 
+class DemoRequest(BaseModel):
+    """Görsel demo arayüzünden gelen istek.
+
+    Ham gömme yerine yüksek seviyeli seçimler alınır; sunucu senaryoya
+    uygun sentetik bir seans üretip tam modelden geçirir.
+    """
+
+    scenario: str = Field("rastgele", description="'kontrol' | 'depresyon' | 'rastgele'")
+    signal: float = Field(0.8, ge=0.0, le=2.0, description="Sınıf sinyali gücü")
+    seed: int = Field(0, ge=0, description="Tekrarüretilebilirlik tohumu")
+    modalities: list[str] = Field(
+        default_factory=lambda: ["vision", "audio"],
+        description="Etkin modaliteler",
+    )
+
+
 class ModalityContribution(BaseModel):
     modality: str
     weight: float = Field(..., ge=0.0, le=1.0)
@@ -49,6 +65,7 @@ class HealthResponse(BaseModel):
 
 
 __all__ = [
+    "DemoRequest",
     "HealthResponse",
     "ModalityContribution",
     "PredictRequest",

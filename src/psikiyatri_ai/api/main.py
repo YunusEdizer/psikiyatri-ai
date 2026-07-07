@@ -12,21 +12,27 @@ model ile (geliştirme modunda) çalışır ve uyarı loglar.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import torch
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 
 from .. import __version__
 from ..config import get_settings
 from ..data.schema import DiagnosisLabel
 from ..logging_conf import logger, setup_logging
 from ..training.model import PsikiyatriModel
+from . import demo
 from .schemas import (
+    DemoRequest,
     HealthResponse,
     ModalityContribution,
     PredictRequest,
     PredictResponse,
 )
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 # num_classes=2 varsayılanına göre etiket eşlemesi
 _LABELS = [DiagnosisLabel.KONTROL.value, DiagnosisLabel.DEPRESYON.value]
@@ -67,10 +73,36 @@ app = FastAPI(
 )
 
 
+@app.get("/", response_class=HTMLResponse)
+def index() -> HTMLResponse:
+    """Görsel demo arayüzü."""
+    html = (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(html)
+
+
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     settings = get_settings()
     return HealthResponse(status="ok", version=__version__, env=settings.env)
+
+
+@app.post("/demo/predict", response_model=PredictResponse)
+def demo_predict(req: DemoRequest) -> PredictResponse:
+    """Görsel arayüz için: senaryoya göre sentetik seans üretip modelden geçirir."""
+    try:
+        result = demo.run_demo(req.scenario, req.signal, req.seed, req.modalities)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return PredictResponse(
+        session_id=f"demo-{req.seed}",
+        probabilities=result["probabilities"],
+        predicted_label=result["predicted_label"],
+        incongruence=result["incongruence"],
+        modality_contributions=[
+            ModalityContribution(**c) for c in result["modality_contributions"]
+        ],
+    )
 
 
 def _to_batch(req: PredictRequest) -> dict[str, torch.Tensor]:

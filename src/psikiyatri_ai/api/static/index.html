@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Psikiyatri AI — Karar Destek Demo</title>
+  <style>
+    :root {
+      --bg: #0f1226; --bg2: #161a35; --card: #1c2145; --line: #2b3160;
+      --txt: #e8eaf6; --muted: #9aa0c7; --brand: #6c8cff; --brand2: #9d7bff;
+      --ok: #38d39f; --warn: #ffb454; --danger: #ff6b8a; --radius: 16px;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f4f6ff; --bg2: #eef1fb; --card: #ffffff; --line: #e2e6f5;
+        --txt: #1a1e3a; --muted: #5b6188; --brand: #4c6ef5; --brand2: #7c5cff;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 80% -10%, var(--bg2), var(--bg)) fixed;
+      color: var(--txt); min-height: 100vh; line-height: 1.5;
+    }
+    .wrap { max-width: 940px; margin: 0 auto; padding: 28px 20px 60px; }
+    header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+    .logo {
+      width: 44px; height: 44px; border-radius: 12px; flex: none;
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      display: grid; place-items: center; font-size: 22px;
+    }
+    h1 { font-size: 1.35rem; margin: 0; letter-spacing: -.2px; }
+    .sub { color: var(--muted); font-size: .82rem; margin: 2px 0 0; }
+    .badge {
+      margin-left: auto; font-size: .72rem; font-weight: 600; padding: 5px 11px;
+      border-radius: 999px; background: rgba(255,180,84,.15); color: var(--warn);
+      border: 1px solid rgba(255,180,84,.35); white-space: nowrap;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 20px; box-shadow: 0 12px 40px rgba(0,0,0,.18);
+    }
+    .card h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .8px;
+      color: var(--muted); margin: 0 0 16px; font-weight: 700; }
+    label.field { display: block; font-size: .82rem; color: var(--muted); margin: 16px 0 8px; }
+    .seg { display: flex; gap: 8px; background: var(--bg2); padding: 5px;
+      border-radius: 12px; border: 1px solid var(--line); }
+    .seg button {
+      flex: 1; border: 0; background: transparent; color: var(--muted); cursor: pointer;
+      padding: 9px 6px; border-radius: 9px; font-size: .84rem; font-weight: 600;
+      transition: .18s; font-family: inherit;
+    }
+    .seg button.active { background: linear-gradient(135deg, var(--brand), var(--brand2)); color: #fff; }
+    .toggles { display: flex; gap: 10px; }
+    .toggle {
+      flex: 1; display: flex; align-items: center; gap: 9px; cursor: pointer;
+      padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg2);
+      font-size: .88rem; user-select: none; transition: .18s;
+    }
+    .toggle.on { border-color: var(--brand); background: rgba(108,140,255,.12); }
+    .toggle .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .toggle.on .dot { background: var(--ok); box-shadow: 0 0 0 4px rgba(56,211,159,.18); }
+    input[type=range] { width: 100%; accent-color: var(--brand); }
+    .rowval { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); }
+    .run {
+      width: 100%; margin-top: 22px; border: 0; cursor: pointer; color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      padding: 14px; border-radius: 12px; font-size: .98rem; font-weight: 700;
+      font-family: inherit; transition: .18s; box-shadow: 0 8px 24px rgba(108,140,255,.35);
+    }
+    .run:hover { filter: brightness(1.07); }
+    .run:disabled { opacity: .6; cursor: default; }
+
+    .verdict { text-align: center; padding: 8px 0 18px; }
+    .verdict .lbl { font-size: 2rem; font-weight: 800; letter-spacing: -.5px; }
+    .verdict .lbl.kontrol { color: var(--ok); }
+    .verdict .lbl.depresyon { color: var(--danger); }
+    .verdict small { color: var(--muted); display: block; font-size: .78rem; margin-top: 2px; }
+
+    .bar { margin: 12px 0; }
+    .bar .top { display: flex; justify-content: space-between; font-size: .84rem; margin-bottom: 6px; }
+    .bar .track { height: 12px; background: var(--bg2); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+    .bar .fill { height: 100%; width: 0; border-radius: 999px; transition: width .7s cubic-bezier(.22,1,.36,1); }
+    .fill.k { background: linear-gradient(90deg, #2fb98a, var(--ok)); }
+    .fill.d { background: linear-gradient(90deg, #ff5470, var(--danger)); }
+    .fill.m { background: linear-gradient(90deg, var(--brand), var(--brand2)); }
+
+    .meter { margin-top: 8px; }
+    .meter .scale { position: relative; height: 10px; border-radius: 999px;
+      background: linear-gradient(90deg, var(--ok), var(--warn), var(--danger)); }
+    .meter .pin { position: absolute; top: -5px; width: 4px; height: 20px; border-radius: 3px;
+      background: var(--txt); box-shadow: 0 0 0 3px var(--card); transition: left .7s cubic-bezier(.22,1,.36,1); }
+    .meter .ends { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-top: 6px; }
+
+    .disc { margin-top: 18px; font-size: .78rem; color: var(--muted);
+      background: var(--bg2); border: 1px dashed var(--line); border-radius: 12px; padding: 12px 14px; }
+    .placeholder { color: var(--muted); text-align: center; padding: 40px 0; font-size: .9rem; }
+    .foot { text-align: center; color: var(--muted); font-size: .74rem; margin-top: 28px; }
+    .foot a { color: var(--brand); text-decoration: none; }
+    .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff; border-radius: 50%; animation: sp .7s linear infinite; vertical-align: -2px; }
+    @keyframes sp { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">🧠</div>
+      <div>
+        <h1>Psikiyatri AI — Karar Destek</h1>
+        <p class="sub">Multimodal derin öğrenme • görüntü + ses füzyonu • Eurotech-1</p>
+      </div>
+      <span class="badge">DEMO • sentetik veri</span>
+    </header>
+
+    <div class="grid">
+      <!-- KONTROL PANELİ -->
+      <div class="card">
+        <h2>Giriş</h2>
+
+        <label class="field">Senaryo</label>
+        <div class="seg" id="scenario">
+          <button data-v="kontrol">Kontrol benzeri</button>
+          <button data-v="depresyon">Depresyon benzeri</button>
+          <button data-v="rastgele" class="active">Rastgele</button>
+        </div>
+
+        <label class="field">Modaliteler</label>
+        <div class="toggles">
+          <div class="toggle on" data-m="vision"><span class="dot"></span> 👁️ Görüntü</div>
+          <div class="toggle on" data-m="audio"><span class="dot"></span> 🔊 Ses</div>
+        </div>
+
+        <label class="field">Sinyal gücü <span id="sigval" style="color:var(--brand);font-weight:700"></span></label>
+        <input type="range" id="signal" min="0" max="1.6" step="0.1" value="0.8" />
+        <div class="rowval"><span>0 — ayırt edilemez</span><span>1.6 — güçlü</span></div>
+
+        <button class="run" id="run">🔬 Analiz Et</button>
+      </div>
+
+      <!-- SONUÇ PANELİ -->
+      <div class="card">
+        <h2>Karar Destek Çıktısı</h2>
+        <div id="empty" class="placeholder">Bir senaryo seçip <b>Analiz Et</b>'e basın.</div>
+
+        <div id="result" style="display:none">
+          <div class="verdict">
+            <div class="lbl" id="vlabel">—</div>
+            <small>tahmini durum (güven: <span id="vconf">—</span>)</small>
+          </div>
+
+          <div class="bar"><div class="top"><span>Kontrol (sağlıklı)</span><span id="pk">0%</span></div>
+            <div class="track"><div class="fill k" id="fk"></div></div></div>
+          <div class="bar"><div class="top"><span>Depresyon</span><span id="pd">0%</span></div>
+            <div class="track"><div class="fill d" id="fd"></div></div></div>
+
+          <label class="field">Modalite katkısı (dikkat ağırlığı)</label>
+          <div id="contribs"></div>
+
+          <label class="field">Modaliteler arası uyumsuzluk</label>
+          <div class="meter">
+            <div class="scale"><div class="pin" id="pin" style="left:0%"></div></div>
+            <div class="ends"><span>uyumlu</span><span id="incv">—</span><span>uyumsuz</span></div>
+          </div>
+
+          <div class="disc" id="disc"></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="foot">
+      Bu bir demodur; üretilen veri yapaydır ve çıktı <b>teşhis değildir</b>.
+      &nbsp;·&nbsp; <a href="/docs" target="_blank">API dokümanı</a>
+      &nbsp;·&nbsp; <a href="/health" target="_blank">/health</a>
+    </p>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    let scenario = "rastgele";
+
+    // Senaryo segment butonları
+    document.querySelectorAll("#scenario button").forEach((b) => {
+      b.onclick = () => {
+        document.querySelectorAll("#scenario button").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+        scenario = b.dataset.v;
+      };
+    });
+
+    // Modalite anahtarları
+    document.querySelectorAll(".toggle").forEach((t) => {
+      t.onclick = () => t.classList.toggle("on");
+    });
+
+    // Sinyal slider
+    const sig = $("#signal");
+    const sigval = $("#sigval");
+    const showSig = () => (sigval.textContent = parseFloat(sig.value).toFixed(1));
+    sig.oninput = showSig; showSig();
+
+    function selectedModalities() {
+      return [...document.querySelectorAll(".toggle.on")].map((t) => t.dataset.m);
+    }
+
+    async function analyze() {
+      const mods = selectedModalities();
+      if (mods.length === 0) { alert("En az bir modalite seçin."); return; }
+
+      const btn = $("#run");
+      btn.disabled = true;
+      const old = btn.innerHTML;
+      btn.innerHTML = '<span class="spin"></span> Analiz ediliyor…';
+
+      try {
+        const res = await fetch("/demo/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenario,
+            signal: parseFloat(sig.value),
+            seed: Math.floor(Math.random() * 1e9),
+            modalities: mods,
+          }),
+        });
+        if (!res.ok) throw new Error("Sunucu hatası: " + res.status);
+        render(await res.json());
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = old;
+      }
+    }
+    $("#run").onclick = analyze;
+
+    function render(d) {
+      $("#empty").style.display = "none";
+      $("#result").style.display = "block";
+
+      const pk = d.probabilities.kontrol ?? 0;
+      const pd = d.probabilities.depresyon ?? 0;
+      const label = d.predicted_label;
+      const conf = Math.max(pk, pd);
+
+      const vl = $("#vlabel");
+      vl.textContent = label === "kontrol" ? "Kontrol" : "Depresyon";
+      vl.className = "lbl " + label;
+      $("#vconf").textContent = (conf * 100).toFixed(1) + "%";
+
+      $("#pk").textContent = (pk * 100).toFixed(1) + "%";
+      $("#pd").textContent = (pd * 100).toFixed(1) + "%";
+      // reflow tetikle ki geçiş animasyonu oynasın
+      $("#fk").style.width = "0"; $("#fd").style.width = "0";
+      requestAnimationFrame(() => {
+        $("#fk").style.width = (pk * 100).toFixed(1) + "%";
+        $("#fd").style.width = (pd * 100).toFixed(1) + "%";
+      });
+
+      const names = { vision: "👁️ Görüntü", audio: "🔊 Ses", text: "📝 Metin" };
+      $("#contribs").innerHTML = d.modality_contributions.map((c) => `
+        <div class="bar"><div class="top"><span>${names[c.modality] || c.modality}</span>
+          <span>${(c.weight * 100).toFixed(0)}%</span></div>
+          <div class="track"><div class="fill m" style="width:${(c.weight * 100).toFixed(0)}%"></div></div></div>
+      `).join("");
+
+      const inc = d.incongruence;
+      $("#pin").style.left = (inc * 100).toFixed(0) + "%";
+      $("#incv").textContent = inc.toFixed(2);
+      $("#disc").textContent = d.disclaimer;
+    }
+  </script>
+</body>
+</html>
