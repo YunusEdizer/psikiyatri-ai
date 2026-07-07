@@ -18,6 +18,7 @@ bir seansı (`Sample`) temsil eder. Manifest yolu varsayılan olarak:
 | `video_path` | string | ✖ | Görüntü modalitesi dosya yolu |
 | `audio_path` | string | ✖ | Ses modalitesi dosya yolu |
 | `transcript` | string | ✖ | **Maskeli** konuşma metni (PII temizlenmiş) |
+| `features_path` | string | ✖ | Önceden çıkarılmış öznitelik dosyası (`.npz`). Verilirse ham medya yerine bu okunur (hızlı yol) |
 | `label` | string | ✔* | Etiket: `kontrol`, `depresyon`, `anksiyete`, `bipolar`, `sizofreni`, `belirsiz` |
 
 \* Eğitim için etiket zorunludur; çıkarımda gerekmez.
@@ -41,11 +42,43 @@ bir seansı (`Sample`) temsil eder. Manifest yolu varsayılan olarak:
 4. **Sınıf dengesi**: `build_dataloaders` sınıf-dengeli (stratified)
    eğitim/doğrulama ayrımı yapar.
 
-## Manifest Üretimi (öneri)
+## Manifest Üretimi
 
-Ham veriden manifest üreten betik ileride `scripts/build_manifest.py`
-altına eklenecektir; anonimleştirme adımı bu betiğin ilk aşamasıdır:
+İki yol vardır:
+
+### 1. Gerçek ham veriden (üretim) — `scripts/build_manifest.py`
+
+Ham seans klasörlerini tarar, anonimleştirir ve manifest üretir. Beklenen
+ham yapı:
+
+```
+data/raw/sessions/<session_id>/
+    video.mp4        (opsiyonel)
+    audio.wav        (opsiyonel)
+    transcript.txt   (opsiyonel)
+    meta.json        -> {"patient_id": "...", "label": "depresyon"}
+```
+
+```bash
+python scripts/build_manifest.py --raw-root data/raw/sessions
+```
+
+`patient_id` geri döndürülemez takma-kimliğe çevrilir; transkript PII
+maskelemesinden geçer; ham medya **kopyalanmaz**, yalnızca yolları kaydedilir.
 
 ```
 ham seans klasörü ─► anonimleştir (pseudonym + mask) ─► manifest.jsonl
 ```
+
+### 2. Sentetik demo veri (geliştirme) — `scripts/generate_sample_data.py`
+
+Gerçek veri hazır olmadan tüm hattı denemek için önceden çıkarılmış
+öznitelik (`.npz`) + manifest üretir. Sınıflara öğrenilebilir sinyal
+enjekte edildiğinden eğitim gerçekten yakınsar.
+
+```bash
+python scripts/generate_sample_data.py --count 300 --seed 42 --signal 0.8
+psikiyatri-train        # üretilen manifest ile eğitim (modaliteler otomatik algılanır)
+```
+
+> Üretilen sentetik veri tamamen yapaydır, hiçbir gerçek hastayı temsil etmez.

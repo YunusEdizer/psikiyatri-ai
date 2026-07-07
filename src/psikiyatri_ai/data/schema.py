@@ -40,6 +40,10 @@ class Sample(BaseModel):
     audio_path: Path | None = None
     transcript: str | None = Field(None, description="Maskeli konuşma metni")
 
+    # Önceden çıkarılmış öznitelikler (.npz). Verildiğinde ham medya yerine
+    # doğrudan bu dosya okunur (hızlı yol; ağır bağımlılık gerektirmez).
+    features_path: Path | None = None
+
     label: DiagnosisLabel | None = None
 
     def available_modalities(self) -> list[Modality]:

@@ -75,10 +75,19 @@ class FeatureExtractor:
         self,
         cfg: DataConfig | None = None,
         modalities: Sequence[str] = ("vision", "audio", "text"),
+        data_root: Path | None = None,
     ) -> None:
         self.cfg = cfg or DataConfig()
         self.modalities = tuple(modalities)
+        # Manifest'teki göreli yollar bu köke göre çözülür.
+        from ..config import get_settings
+
+        self.data_root = Path(data_root) if data_root else get_settings().data_dir
         self._tokenizer = None  # tembel
+
+    def _resolve(self, path: Path) -> Path:
+        path = Path(path)
+        return path if path.is_absolute() else self.data_root / path
 
     # -- metin tokenizer (BERTurk) -- #
     @property
@@ -95,12 +104,19 @@ class FeatureExtractor:
         return self._tokenizer
 
     def extract(self, sample: Sample) -> dict[str, torch.Tensor]:
-        """Örnekten etkin modalitelerin özniteliklerini çıkarır."""
+        """Örnekten etkin modalitelerin özniteliklerini çıkarır.
+
+        ``features_path`` verilmişse ham medya yerine önceden çıkarılmış
+        öznitelikler (.npz) doğrudan yüklenir.
+        """
+        if sample.features_path is not None:
+            return self._load_precomputed(self._resolve(sample.features_path))
+
         feats: dict[str, torch.Tensor] = {}
         if "vision" in self.modalities and sample.video_path is not None:
-            feats["vision"] = self._extract_vision(sample.video_path)
+            feats["vision"] = self._extract_vision(self._resolve(sample.video_path))
         if "audio" in self.modalities and sample.audio_path is not None:
-            mfcc, egemaps = self._extract_audio(sample.audio_path)
+            mfcc, egemaps = self._extract_audio(self._resolve(sample.audio_path))
             feats["audio_mfcc"] = mfcc
             if egemaps is not None:
                 feats["audio_egemaps"] = egemaps
@@ -108,6 +124,20 @@ class FeatureExtractor:
             ids, mask = self._extract_text(sample.transcript)
             feats["text_input_ids"] = ids
             feats["text_attention_mask"] = mask
+        return feats
+
+    def _load_precomputed(self, path: Path) -> dict[str, torch.Tensor]:
+        """Önceden çıkarılmış öznitelikleri (.npz) tensör sözlüğüne yükler."""
+        import numpy as np
+
+        if not path.exists():
+            raise FileNotFoundError(f"Öznitelik dosyası bulunamadı: {path}")
+        data = np.load(path)
+        int_keys = {"text_input_ids", "text_attention_mask"}
+        feats: dict[str, torch.Tensor] = {}
+        for key in data.files:
+            tensor = torch.from_numpy(data[key])
+            feats[key] = tensor.long() if key in int_keys else tensor.float()
         return feats
 
     def _extract_vision(self, video_path: Path) -> torch.Tensor:
@@ -286,12 +316,13 @@ def build_dataloaders(
     val_split: float = 0.2,
     seed: int = 42,
     num_workers: int = 0,
+    data_root: Path | None = None,
 ) -> tuple[DataLoader, DataLoader]:
     """Manifest'ten sınıf-dengeli eğitim/doğrulama DataLoader'ları kurar."""
     cfg = cfg or DataConfig()
     samples = load_manifest(manifest_path)
     encoder = LabelEncoder(classes)
-    extractor = FeatureExtractor(cfg, modalities=modalities)
+    extractor = FeatureExtractor(cfg, modalities=modalities, data_root=data_root)
 
     labels = [encoder.encode(s.label) for s in samples if s.label is not None]
     train_samples, val_samples = train_test_split(

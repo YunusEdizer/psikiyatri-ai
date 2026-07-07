@@ -31,9 +31,12 @@ Proje formundaki 6 aşamalı iş planına (Tasarım → Veri Toplama → Ön İ�
 - [x] Uçtan uca eğitim döngüsü (`training/train.py`: `fit`, doğrulama, checkpoint)
 - [x] `SyntheticDataset` ile hat doğrulaması (smoke) + testler
 - [x] Manifest formatı dokümantasyonu (`docs/veri-formati.md`)
+- [x] `scripts/build_manifest.py` — ham seans → anonim manifest üretimi
+- [x] `scripts/generate_sample_data.py` — sentetik demo veri (öğrenilebilir sinyal)
+- [x] Önceden çıkarılmış öznitelik (`.npz`) yolu — hızlı, bağımlılıksız eğitim
+- [x] Dosya-tabanlı uçtan uca eğitim doğrulandı (denge-doğruluk 0.73 → 1.00 sentetik veride)
 - [ ] Deney protokolü ve etiket taksonomisinin klinik ekiple netleştirilmesi
 - [ ] Veri toplama SOP'u (standart işletim prosedürü) ve rıza formları
-- [ ] `scripts/build_manifest.py` — ham seans → anonim manifest üretimi
 - [ ] CI (test + ruff) kurulumu
 - [ ] Gerçek veriyle ilk eğitim ve temel (baseline) metrikler
 

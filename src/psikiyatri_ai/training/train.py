@@ -129,14 +129,18 @@ def main() -> None:
     manifest = settings.processed_data_dir / "manifest.jsonl"
     if manifest.exists():
         logger.info("Manifest bulundu: {}", manifest)
+        modalities, use_egemaps = _infer_modalities(manifest)
+        logger.info("Algılanan modaliteler: {}", modalities)
         train_loader, val_loader = build_dataloaders(
             manifest,
             batch_size=cfg.batch_size,
             val_split=cfg.val_split,
             seed=cfg.seed,
-            modalities=cfg.modalities,
+            modalities=modalities,
         )
-        model = PsikiyatriModel(settings.model, enabled_modalities=cfg.modalities)
+        model = PsikiyatriModel(
+            settings.model, enabled_modalities=modalities, use_egemaps=use_egemaps
+        )
         fit(model, train_loader, val_loader, cfg, device)
     else:
         logger.warning(
@@ -145,6 +149,24 @@ def main() -> None:
             manifest,
         )
         _synthetic_smoke(device)
+
+
+def _infer_modalities(manifest) -> tuple[tuple[str, ...], bool]:  # noqa: ANN001
+    """Manifest'in ilk örneğinden mevcut modaliteleri ve eGeMAPS varlığını çıkarır."""
+    from ..data.datamodule import FeatureExtractor, load_manifest
+
+    samples = load_manifest(manifest)
+    if not samples:
+        raise ValueError("Manifest boş.")
+    feats = FeatureExtractor(modalities=("vision", "audio", "text")).extract(samples[0])
+    mods: list[str] = []
+    if "vision" in feats:
+        mods.append("vision")
+    if "audio_mfcc" in feats:
+        mods.append("audio")
+    if "text_input_ids" in feats:
+        mods.append("text")
+    return tuple(mods), "audio_egemaps" in feats
 
 
 def _synthetic_smoke(device: torch.device) -> None:
