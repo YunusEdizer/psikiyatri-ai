@@ -88,6 +88,16 @@ pytest
 ruff check src tests
 ```
 
+## Sürekli Entegrasyon (CI)
+
+Her `push` ve `pull_request`'te GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) şunları çalıştırır:
+
+- **Ruff** (lint) — `src`, `tests`, `scripts`
+- **Pytest** — kapsam raporu ile (Python 3.11 ve 3.12 matrisi)
+- **mypy** (tip denetimi) — bilgilendirme amaçlı (CI'yı kırmaz)
+
+> GitHub'a bağladıktan sonra rozet: `![CI](https://github.com/<OWNER>/psikiyatri-ai/actions/workflows/ci.yml/badge.svg)` (`<OWNER>` kısmını kendi kullanıcı/organizasyon adınızla değiştirin).
+
 ## Etik ve Veri Gizliliği
 
 Sağlık verisi işlendiği için proje **KVKK** ve uluslararası etik standartlara uyumlu tasarlanır. Tüm hasta verisi işleme öncesi **anonimleştirilir**. Ayrıntı: [`docs/veri-yonetimi-ve-etik.md`](docs/veri-yonetimi-ve-etik.md).

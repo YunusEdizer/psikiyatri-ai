@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# Aynı dal için eski koşuları iptal et (kaynak tasarrufu)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test & Lint (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Depoyu çek
+        uses: actions/checkout@v4
+
+      - name: Python ${{ matrix.python-version }} kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: CPU torch kur (CUDA indirmesini önle)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Paketi geliştirme bağımlılıklarıyla kur
+        run: pip install -e ".[dev]"
+
+      - name: Ruff (lint)
+        run: ruff check src tests scripts
+
+      - name: Pytest (kapsam ile)
+        run: pytest --cov=psikiyatri_ai --cov-report=term-missing
+
+  typecheck:
+    name: Tip Denetimi (mypy)
+    runs-on: ubuntu-latest
+    # Bilgilendirme amaçlı; başarısızlık CI'yı kırmaz (henüz kademeli geçiş)
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[dev]"
+      - run: mypy src

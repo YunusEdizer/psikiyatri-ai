@@ -37,7 +37,7 @@ Proje formundaki 6 aşamalı iş planına (Tasarım → Veri Toplama → Ön İ�
 - [x] Dosya-tabanlı uçtan uca eğitim doğrulandı (denge-doğruluk 0.73 → 1.00 sentetik veride)
 - [ ] Deney protokolü ve etiket taksonomisinin klinik ekiple netleştirilmesi
 - [ ] Veri toplama SOP'u (standart işletim prosedürü) ve rıza formları
-- [ ] CI (test + ruff) kurulumu
+- [x] CI (test + ruff + mypy) kurulumu — GitHub Actions, Py 3.11/3.12 matrisi
 - [ ] Gerçek veriyle ilk eğitim ve temel (baseline) metrikler
 
 ## Riskler ve Azaltım

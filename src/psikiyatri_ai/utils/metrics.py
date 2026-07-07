@@ -43,7 +43,7 @@ def binary_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> ClassificationMetr
     fp = int(((y_pred == 1) & (y_true == 0)).sum())
     fn = int(((y_pred == 0) & (y_true == 1)).sum())
 
-    def _safe_div(a: int, b: int) -> float:
+    def _safe_div(a: float, b: float) -> float:
         return a / b if b else 0.0
 
     sensitivity = _safe_div(tp, tp + fn)
