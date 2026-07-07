@@ -88,6 +88,8 @@ pytest
 ruff check src tests
 ```
 
+Ayrıntılı test/çalıştırma adımları: [`docs/test-rehberi.md`](docs/test-rehberi.md)
+
 ## Sürekli Entegrasyon (CI)
 
 Her `push` ve `pull_request`'te GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) şunları çalıştırır:
