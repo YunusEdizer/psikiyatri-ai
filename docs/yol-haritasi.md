@@ -22,14 +22,20 @@ Proje formundaki 6 aşamalı iş planına (Tasarım → Veri Toplama → Ön İ�
 - [x] FastAPI karar destek servisi + testler
 - [x] Metrikler (duyarlılık/özgüllük/dengeli doğruluk)
 
-## Sıradaki Adımlar (Aşama 2 hazırlığı)
+## Aşama 2 — Devam Ediyor 🔄
 
-- [ ] `data/datamodule.py` — PyTorch `Dataset`/`DataLoader` (anonim veri)
-- [ ] Modalite kodlayıcı çıktılarını uçtan uca bağlama (`training/model.py`)
+- [x] `data/datamodule.py` — PyTorch `Dataset`/`DataLoader` (anonim veri, stratified ayrım)
+- [x] `data/batch.py` — `SampleFeatures` / `ModalityBatch` veri yapıları
+- [x] `FeatureExtractor` — manifest → yüz işaretçisi / MFCC+eGeMAPS / BERTurk token
+- [x] Modalite kodlayıcı çıktılarını uçtan uca bağlama (`training/model.py`)
+- [x] Uçtan uca eğitim döngüsü (`training/train.py`: `fit`, doğrulama, checkpoint)
+- [x] `SyntheticDataset` ile hat doğrulaması (smoke) + testler
+- [x] Manifest formatı dokümantasyonu (`docs/veri-formati.md`)
 - [ ] Deney protokolü ve etiket taksonomisinin klinik ekiple netleştirilmesi
 - [ ] Veri toplama SOP'u (standart işletim prosedürü) ve rıza formları
+- [ ] `scripts/build_manifest.py` — ham seans → anonim manifest üretimi
 - [ ] CI (test + ruff) kurulumu
-- [ ] Ham medya → gömme çıkarım hattı (batch inference)
+- [ ] Gerçek veriyle ilk eğitim ve temel (baseline) metrikler
 
 ## Riskler ve Azaltım
 

@@ -38,11 +38,15 @@ _state: dict[str, PsikiyatriModel] = {}
 async def lifespan(app: FastAPI):
     setup_logging()
     settings = get_settings()
-    model = PsikiyatriModel(settings.model)
+    # Servis yolu önceden hesaplanmış gömmeleri alır; yalnızca füzyon başı
+    # gerekir. Kodlayıcıları oluşturmayarak ağır bağımlılıklardan kaçınırız.
+    model = PsikiyatriModel(settings.model, enabled_modalities=())
     weights = settings.model_dir / "psikiyatri_model.pt"
     if weights.exists():
-        model.load_state_dict(torch.load(weights, map_location="cpu"))
-        logger.info("Eğitilmiş ağırlıklar yüklendi: {}", weights)
+        # strict=False: tam checkpoint kodlayıcı ağırlıklarını da içerir;
+        # burada yalnızca füzyon anahtarları yüklenir.
+        model.load_state_dict(torch.load(weights, map_location="cpu"), strict=False)
+        logger.info("Eğitilmiş füzyon ağırlıkları yüklendi: {}", weights)
     else:
         logger.warning(
             "Eğitilmiş ağırlık bulunamadı ({}); rastgele başlatılmış model "
@@ -96,7 +100,7 @@ def _to_batch(req: PredictRequest) -> dict[str, torch.Tensor]:
 def predict(req: PredictRequest) -> PredictResponse:
     model = _state["model"]
     embeddings = _to_batch(req)
-    out = model(embeddings)
+    out = model.fuse(embeddings)
     probs = torch.softmax(out.logits, dim=-1).squeeze(0)
 
     prob_map = {label: float(probs[i]) for i, label in enumerate(_LABELS)}
