@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psikiyatri-ai"
+version = "0.1.0"
+description = "Multimodal derin öğrenme ile psikiyatrik hastalıklarda karar destek sistemi (Eurotech-1)"
+authors = [{ name = "Eurotech Bilişim A.Ş." }]
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+keywords = [
+    "derin-ogrenme", "nlp", "goruntu-isleme", "psikiyatri",
+    "ses-tonu-analizi", "yapay-zeka", "multimodal", "karar-destek",
+]
+
+dependencies = [
+    # Çekirdek sayısal / veri
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "scikit-learn>=1.4",
+    # Derin öğrenme
+    "torch>=2.2",
+    # Yapılandırma / servis
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "loguru>=0.7",
+]
+
+[project.optional-dependencies]
+# Modaliteye özel ağır bağımlılıklar — ihtiyaç halinde kurulur
+vision = ["opencv-python>=4.9", "mediapipe>=0.10", "torchvision>=0.17"]
+audio = ["librosa>=0.10", "soundfile>=0.12", "torchaudio>=2.2", "opensmile>=2.5"]
+text = ["transformers>=4.40", "sentencepiece>=0.2", "tokenizers>=0.19"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "httpx>=0.27",          # FastAPI TestClient için
+    "ipykernel>=6.29",
+]
+# Tüm modaliteler bir arada
+all = [
+    "psikiyatri-ai[vision,audio,text]",
+]
+
+[project.scripts]
+psikiyatri-train = "psikiyatri_ai.training.train:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "W"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+ignore_missing_imports = true
+packages = ["psikiyatri_ai"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+pythonpath = ["src"]

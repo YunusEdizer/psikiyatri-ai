@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Ortam / gizli bilgiler
+.env
+*.key
+*.pem
+secrets/
+
+# ---- HASSAS: Sağlık verisi asla depoya girmez ----
+data/raw/
+data/interim/
+data/processed/
+data/external/
+*.csv
+*.parquet
+*.wav
+*.mp3
+*.mp4
+*.avi
+*.npy
+!**/.gitkeep
+
+# Model ağırlıkları / eserler
+*.pt
+*.pth
+*.onnx
+*.ckpt
+models/
+artifacts/
+mlruns/
+wandb/
+
+# Notebook checkpoint'leri
+.ipynb_checkpoints/
+
+# Test / kapsam
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

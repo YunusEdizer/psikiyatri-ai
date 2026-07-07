@@ -1,0 +1,14 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      PAI_ENV: development
+      PAI_LOG_LEVEL: INFO
+    env_file:
+      - ../.env
+    volumes:
+      - ../models:/app/models:ro

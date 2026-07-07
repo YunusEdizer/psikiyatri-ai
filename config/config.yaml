@@ -1,0 +1,30 @@
+# Psikiyatri AI — deney/model yapılandırması
+# Ortam değişkenleriyle (PAI_*) geçersiz kılınabilir.
+
+model:
+  vision_embed_dim: 256
+  audio_embed_dim: 256
+  text_embed_dim: 768        # BERTurk gizli boyutu
+  fusion_dim: 512
+  num_classes: 2             # kontrol vs. tanı (deney tasarımına göre artırılır)
+  dropout: 0.3
+
+vision:
+  frame_sample_fps: 2.0      # saniyede örneklenecek kare sayısı
+
+audio:
+  sample_rate: 16000
+  n_mfcc: 40
+  use_egemaps: true
+
+text:
+  model_name: dbmdz/bert-base-turkish-cased
+  max_length: 256
+  freeze_backbone: true
+
+training:
+  batch_size: 16
+  learning_rate: 0.0003
+  epochs: 50
+  seed: 42
+  val_split: 0.2
