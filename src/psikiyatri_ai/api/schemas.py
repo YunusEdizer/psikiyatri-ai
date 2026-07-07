@@ -58,6 +58,34 @@ class PredictResponse(BaseModel):
     )
 
 
+class ReceivedFile(BaseModel):
+    modality: str
+    filename: str
+    size_kb: float
+
+
+class SessionAnalysisResponse(BaseModel):
+    """Klinik seans değerlendirme raporu (yükleme akışı)."""
+
+    session_id: str
+    created_at: str
+    pseudonym: str
+    evaluator: str
+    received: list[ReceivedFile]
+    modalities: list[str]
+    analysis_available: bool
+    method: str
+    high_risk: bool = False
+    probabilities: dict[str, float] | None = None
+    predicted_label: str | None = None
+    risk_level: str | None = None
+    matched_indicators: dict[str, list[str]] = Field(default_factory=dict)
+    transcript_preview: str | None = None
+    note: str | None = None
+    disclaimer: str
+    prototype_note: str
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str
@@ -70,4 +98,6 @@ __all__ = [
     "ModalityContribution",
     "PredictRequest",
     "PredictResponse",
+    "ReceivedFile",
+    "SessionAnalysisResponse",
 ]

@@ -50,18 +50,30 @@ python -m uvicorn psikiyatri_ai.api.main:app --reload
 
 Sunucu açılınca tarayıcıda:
 
-### 🖥️ En kolayı — Görsel demo arayüzü: http://127.0.0.1:8000/
-Tarayıcıda açılan panelden **senaryo seç** (Kontrol / Depresyon / Rastgele),
-**modaliteleri aç-kapat**, **sinyal gücünü** ayarla ve **Analiz Et**'e bas.
-Sonuç canlı olarak gösterilir: tahmin, olasılık çubukları, modalite katkı
-ağırlıkları ve modaliteler arası uyumsuzluk göstergesi. Hiç kod gerekmez.
+### 🖥️ Klinik panel: http://127.0.0.1:8000/
+Tarayıcıda açılan profesyonel panelde iki mod vardır:
 
-> Not: Demo, senaryoya uygun **sentetik** bir seans üretip eğitilmiş modelden
-> geçirir. "Depresyon benzeri" senaryoda model doğru sınıfı yüksek güvenle
-> tahmin etmeli ve dikkatini **ses** modalitesine yöneltmelidir.
+**1) Kayıt Yükle (gerçek girdi):**
+- Hasta takma-kimliği + değerlendiren adını gir
+- Video / ses kaydı yükle ve/veya **konuşma transkriptini** yapıştır
+- **Analizi Başlat** → klinik rapor: risk düzeyi (düşük/orta/yüksek),
+  olasılık dağılımı, **saptanan belirti ifadeleri**, alınan modaliteler ve
+  **maskeli transkript** (TC/telefon/e-posta otomatik gizlenir)
+- Transkript üzerinde **gerçek** sözlük-tabanlı ön analiz çalışır; sonuç
+  girdiye göre değişir. Raporu **yazdırabilirsin**.
+
+**2) Hızlı Demo (sentetik):**
+- Senaryo (Kontrol / Depresyon / Rastgele) + sinyal gücü seç
+- Eğitilmiş modeli sentetik bir seansla test eder; olasılık, modalite
+  katkısı ve uyumsuzluk göstergesini gösterir.
+
+> Not: Ses/görüntünün otomatik skorlanması tam derin öğrenme hattını
+> gerektirir; prototipte bu modaliteler "alındı" olarak raporlanır, metin
+> ise gerçek olarak analiz edilir.
 
 ### Alternatif — Swagger arayüzü: http://127.0.0.1:8000/docs
-Kod yazmadan `/predict` veya `/demo/predict`'e tıkla → **Try it out** → gönder → yanıtı gör.
+Kod yazmadan `/session/analyze`, `/demo/predict` veya `/predict`'e tıkla →
+**Try it out** → gönder → yanıtı gör.
 
 Örnek istek gövdesi:
 ```json

@@ -38,7 +38,9 @@ Proje formundaki 6 aşamalı iş planına (Tasarım → Veri Toplama → Ön İ�
 - [ ] Deney protokolü ve etiket taksonomisinin klinik ekiple netleştirilmesi
 - [ ] Veri toplama SOP'u (standart işletim prosedürü) ve rıza formları
 - [x] CI (test + ruff + mypy) kurulumu — GitHub Actions, Py 3.11/3.12 matrisi
-- [x] Görsel demo arayüzü (`/`) — senaryo/modalite/sinyal seçimi, canlı sonuç
+- [x] Klinik karar destek paneli (`/`) — kayıt yükleme + transkript, klinik rapor
+- [x] Türkçe sözlük-tabanlı metin ön analizi (`modalities/text/heuristics.py`)
+- [x] `/session/analyze` — dosya yükleme + KVKK maskeleme + risk raporu
 - [ ] Gerçek veriyle ilk eğitim ve temel (baseline) metrikler
 
 ## Riskler ve Azaltım

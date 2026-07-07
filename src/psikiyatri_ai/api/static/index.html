@@ -3,273 +3,413 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Psikiyatri AI — Karar Destek Demo</title>
+  <title>Klinik Karar Destek — Psikiyatri AI</title>
   <style>
     :root {
-      --bg: #0f1226; --bg2: #161a35; --card: #1c2145; --line: #2b3160;
-      --txt: #e8eaf6; --muted: #9aa0c7; --brand: #6c8cff; --brand2: #9d7bff;
-      --ok: #38d39f; --warn: #ffb454; --danger: #ff6b8a; --radius: 16px;
+      --bg:#eef2f7; --surface:#ffffff; --surface2:#f6f8fb; --border:#e3e8f0;
+      --text:#0f1b2d; --muted:#64748b; --primary:#0f766e; --primary-d:#0c5f59;
+      --primary-soft:#effcf9; --ring:rgba(15,118,110,.18);
+      --ok:#15803d; --ok-bg:#e6f5ec; --warn:#b45309; --warn-bg:#fdf1dc;
+      --danger:#c02636; --danger-bg:#fbe7e9; --r:12px;
     }
-    @media (prefers-color-scheme: light) {
+    @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #f4f6ff; --bg2: #eef1fb; --card: #ffffff; --line: #e2e6f5;
-        --txt: #1a1e3a; --muted: #5b6188; --brand: #4c6ef5; --brand2: #7c5cff;
+        --bg:#0a1120; --surface:#0f1a2e; --surface2:#0c1526; --border:#1e2a41;
+        --text:#e6ecf5; --muted:#8b99b3; --primary:#2dd4bf;
+        --primary-d:#5eead4; --primary-soft:#0e2723; --ring:rgba(45,212,191,.22);
+        --ok:#4ade80; --ok-bg:#0f2a1c; --warn:#fbbf24; --warn-bg:#2a2110;
+        --danger:#fb7185; --danger-bg:#2a1418;
       }
     }
-    * { box-sizing: border-box; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; height:100%; }
     body {
-      margin: 0; font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
-      background: radial-gradient(1200px 600px at 80% -10%, var(--bg2), var(--bg)) fixed;
-      color: var(--txt); min-height: 100vh; line-height: 1.5;
+      font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+      background:var(--bg); color:var(--text); font-size:14px; line-height:1.5;
     }
-    .wrap { max-width: 940px; margin: 0 auto; padding: 28px 20px 60px; }
-    header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
-    .logo {
-      width: 44px; height: 44px; border-radius: 12px; flex: none;
-      background: linear-gradient(135deg, var(--brand), var(--brand2));
-      display: grid; place-items: center; font-size: 22px;
-    }
-    h1 { font-size: 1.35rem; margin: 0; letter-spacing: -.2px; }
-    .sub { color: var(--muted); font-size: .82rem; margin: 2px 0 0; }
-    .badge {
-      margin-left: auto; font-size: .72rem; font-weight: 600; padding: 5px 11px;
-      border-radius: 999px; background: rgba(255,180,84,.15); color: var(--warn);
-      border: 1px solid rgba(255,180,84,.35); white-space: nowrap;
-    }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
-    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
-    .card {
-      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-      padding: 20px; box-shadow: 0 12px 40px rgba(0,0,0,.18);
-    }
-    .card h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .8px;
-      color: var(--muted); margin: 0 0 16px; font-weight: 700; }
-    label.field { display: block; font-size: .82rem; color: var(--muted); margin: 16px 0 8px; }
-    .seg { display: flex; gap: 8px; background: var(--bg2); padding: 5px;
-      border-radius: 12px; border: 1px solid var(--line); }
-    .seg button {
-      flex: 1; border: 0; background: transparent; color: var(--muted); cursor: pointer;
-      padding: 9px 6px; border-radius: 9px; font-size: .84rem; font-weight: 600;
-      transition: .18s; font-family: inherit;
-    }
-    .seg button.active { background: linear-gradient(135deg, var(--brand), var(--brand2)); color: #fff; }
-    .toggles { display: flex; gap: 10px; }
-    .toggle {
-      flex: 1; display: flex; align-items: center; gap: 9px; cursor: pointer;
-      padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg2);
-      font-size: .88rem; user-select: none; transition: .18s;
-    }
-    .toggle.on { border-color: var(--brand); background: rgba(108,140,255,.12); }
-    .toggle .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
-    .toggle.on .dot { background: var(--ok); box-shadow: 0 0 0 4px rgba(56,211,159,.18); }
-    input[type=range] { width: 100%; accent-color: var(--brand); }
-    .rowval { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); }
-    .run {
-      width: 100%; margin-top: 22px; border: 0; cursor: pointer; color: #fff;
-      background: linear-gradient(135deg, var(--brand), var(--brand2));
-      padding: 14px; border-radius: 12px; font-size: .98rem; font-weight: 700;
-      font-family: inherit; transition: .18s; box-shadow: 0 8px 24px rgba(108,140,255,.35);
-    }
-    .run:hover { filter: brightness(1.07); }
-    .run:disabled { opacity: .6; cursor: default; }
+    .app { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
 
-    .verdict { text-align: center; padding: 8px 0 18px; }
-    .verdict .lbl { font-size: 2rem; font-weight: 800; letter-spacing: -.5px; }
-    .verdict .lbl.kontrol { color: var(--ok); }
-    .verdict .lbl.depresyon { color: var(--danger); }
-    .verdict small { color: var(--muted); display: block; font-size: .78rem; margin-top: 2px; }
+    /* --- Sidebar --- */
+    .side { background:var(--surface); border-right:1px solid var(--border); padding:20px 16px;
+      display:flex; flex-direction:column; gap:6px; position:sticky; top:0; height:100vh; }
+    .brand { display:flex; align-items:center; gap:11px; padding:6px 6px 18px; }
+    .brand .mark { width:38px; height:38px; border-radius:10px; flex:none; color:#fff;
+      background:linear-gradient(135deg,var(--primary),#0891b2); display:grid; place-items:center; font-weight:800; }
+    .brand b { font-size:.95rem; display:block; letter-spacing:-.2px; }
+    .brand span { font-size:.72rem; color:var(--muted); }
+    .nav a { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px;
+      color:var(--muted); text-decoration:none; font-weight:600; font-size:.86rem; }
+    .nav a.on { background:var(--primary-soft); color:var(--primary); }
+    .nav a:hover:not(.on) { background:var(--surface2); }
+    .side .foot { margin-top:auto; font-size:.72rem; color:var(--muted); padding:12px 8px 0;
+      border-top:1px solid var(--border); }
+    .tag { display:inline-block; font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:999px;
+      background:var(--warn-bg); color:var(--warn); }
 
-    .bar { margin: 12px 0; }
-    .bar .top { display: flex; justify-content: space-between; font-size: .84rem; margin-bottom: 6px; }
-    .bar .track { height: 12px; background: var(--bg2); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
-    .bar .fill { height: 100%; width: 0; border-radius: 999px; transition: width .7s cubic-bezier(.22,1,.36,1); }
-    .fill.k { background: linear-gradient(90deg, #2fb98a, var(--ok)); }
-    .fill.d { background: linear-gradient(90deg, #ff5470, var(--danger)); }
-    .fill.m { background: linear-gradient(90deg, var(--brand), var(--brand2)); }
+    /* --- Topbar --- */
+    .main { display:flex; flex-direction:column; min-width:0; }
+    .top { display:flex; align-items:center; gap:12px; padding:16px 26px; background:var(--surface);
+      border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+    .top h1 { font-size:1.02rem; margin:0; }
+    .top .meta { margin-left:auto; display:flex; align-items:center; gap:14px; color:var(--muted); font-size:.8rem; }
+    .content { padding:24px 26px 48px; display:grid; grid-template-columns:minmax(0,420px) 1fr; gap:22px; align-items:start; }
+    @media (max-width:960px){ .app{grid-template-columns:1fr;} .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;}
+      .nav{display:flex;gap:4px;} .side .foot{display:none;} .content{grid-template-columns:1fr;} }
 
-    .meter { margin-top: 8px; }
-    .meter .scale { position: relative; height: 10px; border-radius: 999px;
-      background: linear-gradient(90deg, var(--ok), var(--warn), var(--danger)); }
-    .meter .pin { position: absolute; top: -5px; width: 4px; height: 20px; border-radius: 3px;
-      background: var(--txt); box-shadow: 0 0 0 3px var(--card); transition: left .7s cubic-bezier(.22,1,.36,1); }
-    .meter .ends { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-top: 6px; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
+      box-shadow:0 1px 2px rgba(16,24,40,.04); }
+    .card > .hd { padding:16px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+    .card > .hd h2 { font-size:.9rem; margin:0; }
+    .card > .hd .sub { font-size:.75rem; color:var(--muted); margin-left:auto; }
+    .card > .bd { padding:18px; }
 
-    .disc { margin-top: 18px; font-size: .78rem; color: var(--muted);
-      background: var(--bg2); border: 1px dashed var(--line); border-radius: 12px; padding: 12px 14px; }
-    .placeholder { color: var(--muted); text-align: center; padding: 40px 0; font-size: .9rem; }
-    .foot { text-align: center; color: var(--muted); font-size: .74rem; margin-top: 28px; }
-    .foot a { color: var(--brand); text-decoration: none; }
-    .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4);
-      border-top-color: #fff; border-radius: 50%; animation: sp .7s linear infinite; vertical-align: -2px; }
-    @keyframes sp { to { transform: rotate(360deg); } }
+    label.lbl { display:block; font-size:.74rem; font-weight:700; text-transform:uppercase;
+      letter-spacing:.5px; color:var(--muted); margin:0 0 7px; }
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    input[type=text], textarea, select {
+      width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:9px;
+      background:var(--surface2); color:var(--text); font-family:inherit; font-size:.88rem; }
+    input:focus, textarea:focus, select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--ring); }
+    textarea { resize:vertical; min-height:96px; }
+    .field { margin-top:15px; }
+
+    .tabs { display:flex; gap:4px; background:var(--surface2); padding:4px; border-radius:10px; border:1px solid var(--border); }
+    .tabs button { flex:1; border:0; background:transparent; color:var(--muted); font-weight:700; font-size:.82rem;
+      padding:9px; border-radius:7px; cursor:pointer; font-family:inherit; }
+    .tabs button.on { background:var(--surface); color:var(--primary); box-shadow:0 1px 2px rgba(16,24,40,.08); }
+
+    .drop { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1.5px dashed var(--border);
+      border-radius:10px; cursor:pointer; background:var(--surface2); transition:.15s; }
+    .drop:hover { border-color:var(--primary); background:var(--primary-soft); }
+    .drop .ic { width:34px; height:34px; border-radius:8px; background:var(--surface); border:1px solid var(--border);
+      display:grid; place-items:center; flex:none; }
+    .drop .t { font-size:.85rem; font-weight:600; }
+    .drop .h { font-size:.74rem; color:var(--muted); }
+    .drop.has { border-style:solid; border-color:var(--primary); }
+    .drop input { display:none; }
+
+    .btn { width:100%; margin-top:18px; border:0; cursor:pointer; color:#fff; background:var(--primary);
+      padding:12px; border-radius:10px; font-size:.92rem; font-weight:700; font-family:inherit; transition:.15s; }
+    .btn:hover { background:var(--primary-d); }
+    .btn:disabled { opacity:.55; cursor:default; }
+    .rng { width:100%; accent-color:var(--primary); }
+    .rngrow { display:flex; justify-content:space-between; font-size:.74rem; color:var(--muted); }
+
+    /* --- Report --- */
+    .empty { text-align:center; color:var(--muted); padding:56px 20px; }
+    .empty .big { font-size:2.2rem; opacity:.35; }
+    .repmeta { display:flex; flex-wrap:wrap; gap:18px 26px; font-size:.8rem; margin-bottom:16px; }
+    .repmeta div span { display:block; color:var(--muted); font-size:.7rem; text-transform:uppercase; letter-spacing:.4px; }
+    .repmeta div b { font-weight:700; }
+
+    .banner { display:flex; align-items:center; gap:14px; padding:16px; border-radius:11px; border:1px solid; margin-bottom:18px; }
+    .banner .sev { font-size:.72rem; font-weight:800; padding:4px 10px; border-radius:999px; text-transform:uppercase; letter-spacing:.5px; }
+    .banner .txt b { font-size:1.05rem; }
+    .banner .txt span { display:block; color:var(--muted); font-size:.78rem; }
+    .banner.dusuk{ background:var(--ok-bg); border-color:transparent; } .banner.dusuk .sev{ background:var(--ok); color:#fff; }
+    .banner.orta{ background:var(--warn-bg); border-color:transparent; } .banner.orta .sev{ background:var(--warn); color:#fff; }
+    .banner.yuksek{ background:var(--danger-bg); border-color:transparent; } .banner.yuksek .sev{ background:var(--danger); color:#fff; }
+
+    .sec { margin-top:20px; }
+    .bar { margin:9px 0; }
+    .bar .t { display:flex; justify-content:space-between; font-size:.82rem; margin-bottom:5px; }
+    .bar .track { height:9px; background:var(--surface2); border:1px solid var(--border); border-radius:999px; overflow:hidden; }
+    .bar .fill { height:100%; width:0; border-radius:999px; transition:width .6s cubic-bezier(.22,1,.36,1); background:var(--primary); }
+    .bar .fill.d { background:var(--danger); } .bar .fill.k { background:var(--ok); }
+
+    table.tbl { width:100%; border-collapse:collapse; font-size:.82rem; }
+    table.tbl td, table.tbl th { text-align:left; padding:8px 6px; border-bottom:1px solid var(--border); }
+    table.tbl th { font-size:.7rem; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:700; }
+    .pill { display:inline-block; font-size:.72rem; padding:3px 9px; border-radius:999px; background:var(--surface2);
+      border:1px solid var(--border); color:var(--muted); }
+    .pill.ok { color:var(--ok); }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+    .chip { font-size:.75rem; padding:4px 10px; border-radius:8px; background:var(--danger-bg); color:var(--danger); font-weight:600; }
+    .catlbl { font-size:.74rem; font-weight:700; color:var(--text); margin-top:10px; }
+    .pre { background:var(--surface2); border:1px solid var(--border); border-radius:9px; padding:11px 13px;
+      font-size:.82rem; color:var(--muted); white-space:pre-wrap; max-height:150px; overflow:auto; }
+    .note { margin-top:16px; font-size:.76rem; color:var(--muted); background:var(--surface2);
+      border:1px dashed var(--border); border-radius:9px; padding:11px 13px; }
+    .actions { display:flex; gap:8px; margin-top:16px; }
+    .ghost { background:transparent; border:1px solid var(--border); color:var(--text); padding:8px 14px;
+      border-radius:9px; font-weight:600; font-size:.82rem; cursor:pointer; font-family:inherit; }
+    .spin { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4);
+      border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; vertical-align:-2px; }
+    @keyframes sp { to { transform:rotate(360deg); } }
+    .hidden { display:none !important; }
+
+    @media print {
+      .side,.top,#panel,.actions,.tag { display:none !important; }
+      .app,.content { display:block; } .card { border:none; box-shadow:none; }
+      body { background:#fff; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="logo">🧠</div>
-      <div>
-        <h1>Psikiyatri AI — Karar Destek</h1>
-        <p class="sub">Multimodal derin öğrenme • görüntü + ses füzyonu • Eurotech-1</p>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="side">
+      <div class="brand">
+        <div class="mark">Ψ</div>
+        <div><b>Psikiyatri AI</b><span>Karar Destek Sistemi</span></div>
       </div>
-      <span class="badge">DEMO • sentetik veri</span>
-    </header>
+      <nav class="nav">
+        <a href="#" class="on">◧&nbsp; Değerlendirme</a>
+        <a href="/docs" target="_blank">◱&nbsp; API / Geliştirici</a>
+        <a href="/health" target="_blank">◉&nbsp; Sistem Durumu</a>
+      </nav>
+      <div class="foot">
+        <span class="tag">Prototip · TRL6</span><br /><br />
+        Eurotech-1 · v0.1.0<br />Multimodal derin öğrenme
+      </div>
+    </aside>
 
-    <div class="grid">
-      <!-- KONTROL PANELİ -->
-      <div class="card">
-        <h2>Giriş</h2>
-
-        <label class="field">Senaryo</label>
-        <div class="seg" id="scenario">
-          <button data-v="kontrol">Kontrol benzeri</button>
-          <button data-v="depresyon">Depresyon benzeri</button>
-          <button data-v="rastgele" class="active">Rastgele</button>
+    <!-- Main -->
+    <div class="main">
+      <div class="top">
+        <h1>Klinik Karar Destek</h1>
+        <div class="meta">
+          <span id="today"></span>
+          <span>Değerlendiren: <b id="who">—</b></span>
         </div>
-
-        <label class="field">Modaliteler</label>
-        <div class="toggles">
-          <div class="toggle on" data-m="vision"><span class="dot"></span> 👁️ Görüntü</div>
-          <div class="toggle on" data-m="audio"><span class="dot"></span> 🔊 Ses</div>
-        </div>
-
-        <label class="field">Sinyal gücü <span id="sigval" style="color:var(--brand);font-weight:700"></span></label>
-        <input type="range" id="signal" min="0" max="1.6" step="0.1" value="0.8" />
-        <div class="rowval"><span>0 — ayırt edilemez</span><span>1.6 — güçlü</span></div>
-
-        <button class="run" id="run">🔬 Analiz Et</button>
       </div>
 
-      <!-- SONUÇ PANELİ -->
-      <div class="card">
-        <h2>Karar Destek Çıktısı</h2>
-        <div id="empty" class="placeholder">Bir senaryo seçip <b>Analiz Et</b>'e basın.</div>
+      <div class="content">
+        <!-- Sol: giriş -->
+        <div class="card" id="panel">
+          <div class="hd"><h2>Yeni Değerlendirme</h2></div>
+          <div class="bd">
+            <div class="row2">
+              <div><label class="lbl">Hasta takma-kimliği</label>
+                <input type="text" id="pid" placeholder="örn. pid_00427" /></div>
+              <div><label class="lbl">Değerlendiren</label>
+                <input type="text" id="ev" placeholder="Dr. …" /></div>
+            </div>
 
-        <div id="result" style="display:none">
-          <div class="verdict">
-            <div class="lbl" id="vlabel">—</div>
-            <small>tahmini durum (güven: <span id="vconf">—</span>)</small>
+            <div class="field">
+              <div class="tabs">
+                <button class="on" data-tab="upload">Kayıt Yükle</button>
+                <button data-tab="demo">Hızlı Demo</button>
+              </div>
+            </div>
+
+            <!-- Upload modu -->
+            <div id="tab-upload">
+              <div class="field">
+                <label class="lbl">Görüntü kaydı</label>
+                <label class="drop" id="d-video">
+                  <span class="ic">🎥</span>
+                  <span><span class="t" id="n-video">Video seç veya sürükle</span>
+                    <span class="h">mp4, mov · yüz ifadesi analizi</span></span>
+                  <input type="file" id="f-video" accept="video/*" />
+                </label>
+              </div>
+              <div class="field">
+                <label class="lbl">Ses kaydı</label>
+                <label class="drop" id="d-audio">
+                  <span class="ic">🎙️</span>
+                  <span><span class="t" id="n-audio">Ses seç veya sürükle</span>
+                    <span class="h">wav, mp3 · ses tonu analizi</span></span>
+                  <input type="file" id="f-audio" accept="audio/*" />
+                </label>
+              </div>
+              <div class="field">
+                <label class="lbl">Konuşma transkripti</label>
+                <textarea id="txt" placeholder="Seans konuşma metnini buraya yapıştırın…"></textarea>
+                <div class="h" style="font-size:.72rem;color:var(--muted);margin-top:5px">
+                  Kişisel veriler (TC, telefon, e-posta) otomatik maskelenir.</div>
+              </div>
+            </div>
+
+            <!-- Demo modu -->
+            <div id="tab-demo" class="hidden">
+              <div class="field">
+                <label class="lbl">Sentetik senaryo</label>
+                <select id="scn">
+                  <option value="rastgele">Rastgele</option>
+                  <option value="depresyon">Depresyon benzeri</option>
+                  <option value="kontrol">Kontrol (sağlıklı) benzeri</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="lbl">Sinyal gücü <span id="sv" style="color:var(--primary)"></span></label>
+                <input type="range" class="rng" id="sig" min="0" max="1.6" step="0.1" value="0.9" />
+                <div class="rngrow"><span>ayırt edilemez</span><span>güçlü</span></div>
+              </div>
+              <div class="note">Bu mod, eğitilmiş modeli sentetik bir seansla test eder;
+                gerçek hasta verisi kullanmaz.</div>
+            </div>
+
+            <button class="btn" id="go">Analizi Başlat</button>
           </div>
+        </div>
 
-          <div class="bar"><div class="top"><span>Kontrol (sağlıklı)</span><span id="pk">0%</span></div>
-            <div class="track"><div class="fill k" id="fk"></div></div></div>
-          <div class="bar"><div class="top"><span>Depresyon</span><span id="pd">0%</span></div>
-            <div class="track"><div class="fill d" id="fd"></div></div></div>
-
-          <label class="field">Modalite katkısı (dikkat ağırlığı)</label>
-          <div id="contribs"></div>
-
-          <label class="field">Modaliteler arası uyumsuzluk</label>
-          <div class="meter">
-            <div class="scale"><div class="pin" id="pin" style="left:0%"></div></div>
-            <div class="ends"><span>uyumlu</span><span id="incv">—</span><span>uyumsuz</span></div>
+        <!-- Sağ: rapor -->
+        <div class="card">
+          <div class="hd"><h2>Değerlendirme Raporu</h2><span class="sub" id="rmethod"></span></div>
+          <div class="bd">
+            <div id="empty" class="empty">
+              <div class="big">▤</div>
+              <p>Soldan bir değerlendirme başlatın.<br />Rapor burada görünecek.</p>
+            </div>
+            <div id="report" class="hidden"></div>
           </div>
-
-          <div class="disc" id="disc"></div>
         </div>
       </div>
     </div>
-
-    <p class="foot">
-      Bu bir demodur; üretilen veri yapaydır ve çıktı <b>teşhis değildir</b>.
-      &nbsp;·&nbsp; <a href="/docs" target="_blank">API dokümanı</a>
-      &nbsp;·&nbsp; <a href="/health" target="_blank">/health</a>
-    </p>
   </div>
 
   <script>
     const $ = (s) => document.querySelector(s);
-    let scenario = "rastgele";
+    const esc = (s) => (s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    $("#today").textContent = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 
-    // Senaryo segment butonları
-    document.querySelectorAll("#scenario button").forEach((b) => {
+    // Değerlendiren adını üst bara yansıt
+    $("#ev").oninput = () => ($("#who").textContent = $("#ev").value.trim() || "—");
+
+    // Sekmeler
+    let mode = "upload";
+    document.querySelectorAll(".tabs button").forEach((b) => {
       b.onclick = () => {
-        document.querySelectorAll("#scenario button").forEach((x) => x.classList.remove("active"));
-        b.classList.add("active");
-        scenario = b.dataset.v;
+        document.querySelectorAll(".tabs button").forEach((x) => x.classList.remove("on"));
+        b.classList.add("on"); mode = b.dataset.tab;
+        $("#tab-upload").classList.toggle("hidden", mode !== "upload");
+        $("#tab-demo").classList.toggle("hidden", mode !== "demo");
       };
     });
 
-    // Modalite anahtarları
-    document.querySelectorAll(".toggle").forEach((t) => {
-      t.onclick = () => t.classList.toggle("on");
-    });
+    // Dosya seçim etiketleri
+    function wireDrop(id, input, name) {
+      $(input).onchange = () => {
+        const f = $(input).files[0];
+        $(name).textContent = f ? f.name : $(name).dataset.def;
+        $(id).classList.toggle("has", !!f);
+      };
+    }
+    $("#n-video").dataset.def = "Video seç veya sürükle";
+    $("#n-audio").dataset.def = "Ses seç veya sürükle";
+    wireDrop("#d-video", "#f-video", "#n-video");
+    wireDrop("#d-audio", "#f-audio", "#n-audio");
 
     // Sinyal slider
-    const sig = $("#signal");
-    const sigval = $("#sigval");
-    const showSig = () => (sigval.textContent = parseFloat(sig.value).toFixed(1));
+    const sig = $("#sig"), sv = $("#sv");
+    const showSig = () => (sv.textContent = parseFloat(sig.value).toFixed(1));
     sig.oninput = showSig; showSig();
 
-    function selectedModalities() {
-      return [...document.querySelectorAll(".toggle.on")].map((t) => t.dataset.m);
-    }
-
-    async function analyze() {
-      const mods = selectedModalities();
-      if (mods.length === 0) { alert("En az bir modalite seçin."); return; }
-
-      const btn = $("#run");
-      btn.disabled = true;
-      const old = btn.innerHTML;
-      btn.innerHTML = '<span class="spin"></span> Analiz ediliyor…';
-
+    // Analiz
+    $("#go").onclick = async () => {
+      const btn = $("#go"), old = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = '<span class="spin"></span> İşleniyor…';
       try {
-        const res = await fetch("/demo/predict", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scenario,
-            signal: parseFloat(sig.value),
-            seed: Math.floor(Math.random() * 1e9),
-            modalities: mods,
-          }),
-        });
-        if (!res.ok) throw new Error("Sunucu hatası: " + res.status);
-        render(await res.json());
-      } catch (e) {
-        alert(e.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = old;
-      }
+        if (mode === "upload") await runUpload();
+        else await runDemo();
+      } catch (e) { alert(e.message); }
+      finally { btn.disabled = false; btn.innerHTML = old; }
+    };
+
+    async function runUpload() {
+      const fd = new FormData();
+      fd.append("pseudonym", $("#pid").value);
+      fd.append("evaluator", $("#ev").value);
+      fd.append("transcript", $("#txt").value);
+      if ($("#f-video").files[0]) fd.append("video", $("#f-video").files[0]);
+      if ($("#f-audio").files[0]) fd.append("audio", $("#f-audio").files[0]);
+      const res = await fetch("/session/analyze", { method: "POST", body: fd });
+      if (res.status === 422) throw new Error("En az bir kayıt (video/ses) veya transkript girin.");
+      if (!res.ok) throw new Error("Sunucu hatası: " + res.status);
+      renderSession(await res.json());
     }
-    $("#run").onclick = analyze;
 
-    function render(d) {
-      $("#empty").style.display = "none";
-      $("#result").style.display = "block";
-
-      const pk = d.probabilities.kontrol ?? 0;
-      const pd = d.probabilities.depresyon ?? 0;
-      const label = d.predicted_label;
-      const conf = Math.max(pk, pd);
-
-      const vl = $("#vlabel");
-      vl.textContent = label === "kontrol" ? "Kontrol" : "Depresyon";
-      vl.className = "lbl " + label;
-      $("#vconf").textContent = (conf * 100).toFixed(1) + "%";
-
-      $("#pk").textContent = (pk * 100).toFixed(1) + "%";
-      $("#pd").textContent = (pd * 100).toFixed(1) + "%";
-      // reflow tetikle ki geçiş animasyonu oynasın
-      $("#fk").style.width = "0"; $("#fd").style.width = "0";
-      requestAnimationFrame(() => {
-        $("#fk").style.width = (pk * 100).toFixed(1) + "%";
-        $("#fd").style.width = (pd * 100).toFixed(1) + "%";
+    async function runDemo() {
+      const res = await fetch("/demo/predict", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario: $("#scn").value, signal: parseFloat(sig.value),
+          seed: Math.floor(Math.random() * 1e9), modalities: ["vision", "audio"] }),
       });
+      if (!res.ok) throw new Error("Sunucu hatası: " + res.status);
+      renderDemo(await res.json());
+    }
 
-      const names = { vision: "👁️ Görüntü", audio: "🔊 Ses", text: "📝 Metin" };
-      $("#contribs").innerHTML = d.modality_contributions.map((c) => `
-        <div class="bar"><div class="top"><span>${names[c.modality] || c.modality}</span>
-          <span>${(c.weight * 100).toFixed(0)}%</span></div>
-          <div class="track"><div class="fill m" style="width:${(c.weight * 100).toFixed(0)}%"></div></div></div>
-      `).join("");
+    function show() { $("#empty").classList.add("hidden"); $("#report").classList.remove("hidden"); }
+    const pct = (x) => (x * 100).toFixed(1) + "%";
+    const modName = { vision: "Görüntü (yüz ifadesi)", audio: "Ses (ton analizi)", text: "Metin (konuşma içeriği)" };
 
-      const inc = d.incongruence;
-      $("#pin").style.left = (inc * 100).toFixed(0) + "%";
-      $("#incv").textContent = inc.toFixed(2);
-      $("#disc").textContent = d.disclaimer;
+    function probBars(p) {
+      const k = p.kontrol ?? 0, d = p.depresyon ?? 0;
+      return `
+        <div class="bar"><div class="t"><span>Depresyon bulgusu</span><b>${pct(d)}</b></div>
+          <div class="track"><div class="fill d" style="width:${pct(d)}"></div></div></div>
+        <div class="bar"><div class="t"><span>Kontrol (sağlıklı)</span><b>${pct(k)}</b></div>
+          <div class="track"><div class="fill k" style="width:${pct(k)}"></div></div></div>`;
+    }
+
+    function renderSession(d) {
+      show();
+      $("#rmethod").textContent = d.method !== "-" ? d.method : "";
+      $("#who").textContent = d.evaluator !== "-" ? d.evaluator : "—";
+      const sev = d.risk_level || "—";
+      const sevClass = { "düşük": "dusuk", "orta": "orta", "yüksek": "yuksek" }[sev] || "dusuk";
+
+      let banner = "";
+      if (d.analysis_available) {
+        const label = d.predicted_label === "depresyon" ? "Depresyon bulgusu öne çıkıyor" : "Belirgin bulgu yok";
+        banner = `<div class="banner ${sevClass}"><span class="sev">${sev} risk</span>
+          <div class="txt"><b>${label}</b><span>ön analiz güveni: ${pct(Math.max(d.probabilities.kontrol, d.probabilities.depresyon))}${d.high_risk ? " · ⚠ yüksek-risk ifadesi saptandı" : ""}</span></div></div>`;
+      } else {
+        banner = `<div class="banner orta"><span class="sev">bilgi</span>
+          <div class="txt"><b>Otomatik skorlama yapılmadı</b><span>${esc(d.note || "Transkript gerekli.")}</span></div></div>`;
+      }
+
+      let indicators = "";
+      const cats = Object.keys(d.matched_indicators || {});
+      if (cats.length) {
+        indicators = `<div class="sec"><label class="lbl">Saptanan belirti ifadeleri</label>` +
+          cats.map((c) => `<div class="catlbl">${esc(c)}</div><div class="chips">` +
+            d.matched_indicators[c].map((t) => `<span class="chip">${esc(t)}</span>`).join("") + `</div>`).join("") + `</div>`;
+      }
+
+      const rows = (d.received || []).map((f) => `<tr><td>${modName[f.modality] || f.modality}</td>
+        <td>${esc(f.filename)}</td><td>${f.size_kb} KB</td>
+        <td><span class="pill">alındı · tam hatta işlenecek</span></td></tr>`).join("");
+      const textRow = d.transcript_preview != null
+        ? `<tr><td>${modName.text}</td><td>transkript</td><td>${d.transcript_preview.length} krk</td>
+           <td><span class="pill ok">analiz edildi</span></td></tr>` : "";
+
+      $("#report").innerHTML = `
+        <div class="repmeta">
+          <div><span>Seans</span><b>${esc(d.session_id)}</b></div>
+          <div><span>Takma-kimlik</span><b>${esc(d.pseudonym)}</b></div>
+          <div><span>Değerlendiren</span><b>${esc(d.evaluator)}</b></div>
+          <div><span>Tarih</span><b>${esc(d.created_at.replace("T", " ").slice(0, 16))}</b></div>
+        </div>
+        ${banner}
+        ${d.analysis_available ? `<div class="sec"><label class="lbl">Olasılık dağılımı</label>${probBars(d.probabilities)}</div>` : ""}
+        ${indicators}
+        <div class="sec"><label class="lbl">Alınan modaliteler</label>
+          <table class="tbl"><thead><tr><th>Modalite</th><th>Kaynak</th><th>Boyut</th><th>Durum</th></tr></thead>
+          <tbody>${rows}${textRow || (rows ? "" : `<tr><td colspan="4" style="color:var(--muted)">Kayıt yok</td></tr>`)}</tbody></table></div>
+        ${d.transcript_preview ? `<div class="sec"><label class="lbl">Maskeli transkript (önizleme)</label><div class="pre">${esc(d.transcript_preview)}</div></div>` : ""}
+        <div class="note">${esc(d.prototype_note)}<br /><br /><b>Uyarı:</b> ${esc(d.disclaimer)}</div>
+        <div class="actions"><button class="ghost" onclick="window.print()">🖨 Raporu yazdır</button></div>`;
+    }
+
+    function renderDemo(d) {
+      show();
+      $("#rmethod").textContent = "Sentetik demo · eğitilmiş model";
+      const contrib = d.modality_contributions.map((c) => `
+        <div class="bar"><div class="t"><span>${modName[c.modality] || c.modality}</span><b>${(c.weight*100).toFixed(0)}%</b></div>
+          <div class="track"><div class="fill" style="width:${(c.weight*100).toFixed(0)}%"></div></div></div>`).join("");
+      const label = d.predicted_label === "depresyon" ? "Depresyon bulgusu öne çıkıyor" : "Belirgin bulgu yok";
+      const sevClass = d.predicted_label === "depresyon" ? "yuksek" : "dusuk";
+      $("#report").innerHTML = `
+        <div class="banner ${sevClass}"><span class="sev">model çıktısı</span>
+          <div class="txt"><b>${label}</b><span>güven: ${pct(Math.max(d.probabilities.kontrol, d.probabilities.depresyon))}</span></div></div>
+        <div class="sec"><label class="lbl">Olasılık dağılımı</label>${probBars(d.probabilities)}</div>
+        <div class="sec"><label class="lbl">Modalite katkısı (dikkat ağırlığı)</label>${contrib}</div>
+        <div class="sec"><label class="lbl">Modaliteler arası uyumsuzluk</label>
+          <div class="bar"><div class="t"><span>uyum ⟷ uyumsuzluk</span><b>${d.incongruence.toFixed(2)}</b></div>
+          <div class="track"><div class="fill" style="width:${(d.incongruence*100).toFixed(0)}%"></div></div></div></div>
+        <div class="note"><b>Uyarı:</b> ${esc(d.disclaimer)}</div>`;
     }
   </script>
 </body>

@@ -77,3 +77,45 @@ def test_demo_requires_a_modality():
     with TestClient(app) as client:
         r = client.post("/demo/predict", json={"scenario": "kontrol", "modalities": []})
         assert r.status_code == 422
+
+
+def test_session_analyze_with_transcript():
+    data = {
+        "pseudonym": "pid_test",
+        "evaluator": "Dr. Test",
+        "transcript": "Kendimi çok umutsuz ve yorgun hissediyorum, uyuyamıyorum.",
+    }
+    with TestClient(app) as client:
+        r = client.post("/session/analyze", data=data)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["analysis_available"] is True
+        assert body["predicted_label"] in ("kontrol", "depresyon")
+        assert body["matched_indicators"]  # belirti ifadeleri saptanmalı
+        assert body["risk_level"] in ("düşük", "orta", "yüksek")
+
+
+def test_session_analyze_masks_pii_in_preview():
+    data = {"transcript": "Hasta 12345678901 numaralı, üzgün ve karamsar."}
+    with TestClient(app) as client:
+        r = client.post("/session/analyze", data=data)
+        assert r.status_code == 200
+        assert "12345678901" not in r.json()["transcript_preview"]
+
+
+def test_session_analyze_file_upload():
+    files = {"audio": ("seans.wav", b"RIFFxxxxWAVE", "audio/wav")}
+    data = {"pseudonym": "pid_x"}
+    with TestClient(app) as client:
+        r = client.post("/session/analyze", data=data, files=files)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["analysis_available"] is False  # transkript yok
+        assert len(body["received"]) == 1
+        assert body["received"][0]["modality"] == "audio"
+
+
+def test_session_analyze_requires_input():
+    with TestClient(app) as client:
+        r = client.post("/session/analyze", data={"pseudonym": "x"})
+        assert r.status_code == 422

@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import torch
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 
 from .. import __version__
@@ -23,13 +23,14 @@ from ..config import get_settings
 from ..data.schema import DiagnosisLabel
 from ..logging_conf import logger, setup_logging
 from ..training.model import PsikiyatriModel
-from . import demo
+from . import demo, session
 from .schemas import (
     DemoRequest,
     HealthResponse,
     ModalityContribution,
     PredictRequest,
     PredictResponse,
+    SessionAnalysisResponse,
 )
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -84,6 +85,32 @@ def index() -> HTMLResponse:
 def health() -> HealthResponse:
     settings = get_settings()
     return HealthResponse(status="ok", version=__version__, env=settings.env)
+
+
+@app.post("/session/analyze", response_model=SessionAnalysisResponse)
+async def session_analyze(
+    pseudonym: str = Form(""),
+    evaluator: str = Form(""),
+    transcript: str = Form(""),
+    video: UploadFile | None = File(None),
+    audio: UploadFile | None = File(None),
+) -> SessionAnalysisResponse:
+    """Klinik yükleme akışı: kayıtları alır, transkripti işler, rapor döndürür."""
+    received: list[dict] = []
+    for modality, upload in (("vision", video), ("audio", audio)):
+        if upload is not None and upload.filename:
+            data = await upload.read()
+            received.append(
+                {"modality": modality, "filename": upload.filename, "size": len(data)}
+            )
+
+    if not received and not (transcript and transcript.strip()):
+        raise HTTPException(
+            status_code=422, detail="En az bir kayıt (video/ses) veya transkript gerekli."
+        )
+
+    report = session.analyze_session(pseudonym, evaluator, transcript, received)
+    return SessionAnalysisResponse(**report)
 
 
 @app.post("/demo/predict", response_model=PredictResponse)

@@ -29,6 +29,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
     "loguru>=0.7",
 ]
 
@@ -66,6 +67,11 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI, bağımlılık enjeksiyonunda argüman varsayılanı olarak
+# Form()/File()/Depends() çağrısı kullanır — B008 burada kasıtlıdır.
+"src/psikiyatri_ai/api/main.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.11"
