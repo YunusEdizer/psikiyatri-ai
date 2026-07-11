@@ -58,7 +58,7 @@ def test_end_to_end_learns_on_synthetic(tmp_path):
     )
     model = PsikiyatriModel(enabled_modalities=("vision", "audio"))
     cfg = TrainConfig(epochs=8, modalities=("vision", "audio"))
-    fit(model, train_loader, val_loader, cfg, torch.device("cpu"))
+    fit(model, train_loader, val_loader, cfg, torch.device("cpu"), model_dir=tmp_path)
 
     from psikiyatri_ai.training.evaluate import evaluate
 

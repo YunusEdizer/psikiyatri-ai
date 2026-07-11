@@ -10,6 +10,7 @@ smoke eğitimi** koşulur (dosya/ağır bağımlılık gerektirmez).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import torch
 from torch import nn
@@ -17,9 +18,15 @@ from torch.utils.data import DataLoader
 
 from ..config import get_settings
 from ..data.batch import ModalityBatch
-from ..data.datamodule import SyntheticDataset, build_dataloaders, collate_features
+from ..data.datamodule import (
+    DEFAULT_CLASSES,
+    SyntheticDataset,
+    build_dataloaders,
+    collate_features,
+)
 from ..logging_conf import logger, setup_logging
-from ..utils.metrics import binary_metrics
+from ..utils.metrics import compute_metrics
+from .checkpoint import save_metadata
 from .model import PsikiyatriModel
 
 
@@ -31,6 +38,7 @@ class TrainConfig:
     val_split: float = 0.2
     seed: int = 42
     modalities: tuple[str, ...] = ("vision", "audio", "text")
+    classes: tuple[str, ...] = DEFAULT_CLASSES
 
 
 def _select_device() -> torch.device:
@@ -61,8 +69,14 @@ def train_one_epoch(
 
 
 @torch.no_grad()
-def validate(model: PsikiyatriModel, loader: DataLoader, device: torch.device) -> dict[str, float]:
-    """Doğrulama kümesinde ikili metrikleri hesaplar."""
+def validate(
+    model: PsikiyatriModel,
+    loader: DataLoader,
+    device: torch.device,
+    *,
+    class_names: tuple[str, ...] | None = None,
+) -> dict[str, float]:
+    """Doğrulama kümesinde metrikleri hesaplar (ikili veya çok-sınıflı)."""
     model.eval()
     y_true: list[int] = []
     y_pred: list[int] = []
@@ -75,7 +89,12 @@ def validate(model: PsikiyatriModel, loader: DataLoader, device: torch.device) -
         return {}
     import numpy as np
 
-    return binary_metrics(np.array(y_true), np.array(y_pred)).as_dict()
+    return compute_metrics(
+        np.array(y_true),
+        np.array(y_pred),
+        num_classes=model.cfg.num_classes,
+        class_names=class_names,
+    ).as_dict()
 
 
 def _batch_to(batch: ModalityBatch, device: torch.device) -> ModalityBatch:
@@ -88,24 +107,32 @@ def fit(
     val_loader: DataLoader | None,
     cfg: TrainConfig,
     device: torch.device,
+    *,
+    model_dir: Path | None = None,
 ) -> PsikiyatriModel:
-    """Modeli verilen konfigürasyonla eğitir; en iyi doğrulama modelini saklar."""
+    """Modeli verilen konfigürasyonla eğitir; en iyi doğrulama modelini saklar.
+
+    ``model_dir`` verilmezse checkpoint ve sınıf yan-verisi
+    ``get_settings().model_dir`` altına yazılır (test için özelleştirilebilir).
+    """
     model.to(device)
     optimizer = torch.optim.AdamW(
         (p for p in model.parameters() if p.requires_grad), lr=cfg.learning_rate
     )
     criterion = nn.CrossEntropyLoss()
 
-    settings = get_settings()
-    settings.model_dir.mkdir(parents=True, exist_ok=True)
-    ckpt_path = settings.model_dir / "psikiyatri_model.pt"
+    out_dir = Path(model_dir) if model_dir is not None else get_settings().model_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ckpt_path = out_dir / "psikiyatri_model.pt"
+    # Servisin etiket sırasını eşleştirebilmesi için sınıf/modalite yan-verisi
+    save_metadata(out_dir, cfg.classes, cfg.modalities)
     best_metric = -1.0
 
     for epoch in range(1, cfg.epochs + 1):
         loss = train_one_epoch(model, train_loader, optimizer, criterion, device)
         msg = f"epoch {epoch:>3}/{cfg.epochs} | kayıp={loss:.4f}"
         if val_loader is not None:
-            metrics = validate(model, val_loader, device)
+            metrics = validate(model, val_loader, device, class_names=cfg.classes)
             bacc = metrics.get("balanced_accuracy", 0.0)
             msg += f" | denge_doğruluk={bacc:.3f} | duyarlılık={metrics.get('sensitivity', 0):.3f}"
             if bacc > best_metric:
@@ -122,24 +149,34 @@ def main() -> None:
     """CLI giriş noktası."""
     setup_logging()
     settings = get_settings()
-    cfg = TrainConfig()
     device = _select_device()
     logger.info("Cihaz: {} | Ortam: {}", device, settings.env)
 
     manifest = settings.processed_data_dir / "manifest.jsonl"
     if manifest.exists():
+        from ..data.datamodule import infer_classes, load_manifest
+
         logger.info("Manifest bulundu: {}", manifest)
         modalities, use_egemaps = _infer_modalities(manifest)
-        logger.info("Algılanan modaliteler: {}", modalities)
+        classes = tuple(infer_classes(load_manifest(manifest)))
+        if len(classes) < 2:
+            # En az iki sınıf garanti et; mevcut (varsayılan-dışı olabilen)
+            # etiketi ATMA — aksi hâlde LabelEncoder KeyError verir.
+            classes = tuple(dict.fromkeys((*DEFAULT_CLASSES, *classes)))
+        logger.info("Algılanan modaliteler: {} | sınıflar: {}", modalities, classes)
+
+        cfg = TrainConfig(modalities=modalities, classes=classes)
+        model_cfg = settings.model.model_copy(update={"num_classes": len(classes)})
         train_loader, val_loader = build_dataloaders(
             manifest,
+            classes=classes,
             batch_size=cfg.batch_size,
             val_split=cfg.val_split,
             seed=cfg.seed,
             modalities=modalities,
         )
         model = PsikiyatriModel(
-            settings.model, enabled_modalities=modalities, use_egemaps=use_egemaps
+            model_cfg, enabled_modalities=modalities, use_egemaps=use_egemaps
         )
         fit(model, train_loader, val_loader, cfg, device)
     else:
@@ -158,12 +195,16 @@ def _infer_modalities(manifest) -> tuple[tuple[str, ...], bool]:  # noqa: ANN001
     samples = load_manifest(manifest)
     if not samples:
         raise ValueError("Manifest boş.")
-    feats = FeatureExtractor(modalities=("vision", "audio", "text")).extract(samples[0])
+    feats = FeatureExtractor(
+        modalities=("vision", "audio", "text", "wearable")
+    ).extract(samples[0])
     mods: list[str] = []
     if "vision" in feats:
         mods.append("vision")
     if "audio_mfcc" in feats:
         mods.append("audio")
+    if "wearable" in feats:
+        mods.append("wearable")
     if "text_input_ids" in feats:
         mods.append("text")
     return tuple(mods), "audio_egemaps" in feats

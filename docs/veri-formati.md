@@ -18,10 +18,15 @@ bir seansı (`Sample`) temsil eder. Manifest yolu varsayılan olarak:
 | `video_path` | string | ✖ | Görüntü modalitesi dosya yolu |
 | `audio_path` | string | ✖ | Ses modalitesi dosya yolu |
 | `transcript` | string | ✖ | **Maskeli** konuşma metni (PII temizlenmiş) |
+| `wearable_path` | string | ✖ | Giyilebilir sensör kaydı (`.csv`/`.npz`) — kanallar: `kalp_atis_hizi, hrv, cilt_iletkenligi, hareket, titreme, eeg_delta, eeg_theta, eeg_alpha, eeg_beta` |
 | `features_path` | string | ✖ | Önceden çıkarılmış öznitelik dosyası (`.npz`). Verilirse ham medya yerine bu okunur (hızlı yol) |
+| `consent` | bool | ✖ | Katılımcı **açık rızası** alındı mı (KVKK) — varsayılan `false` |
+| `consent_ref` | string | ✖ | İmzalı onam formu referansı |
 | `label` | string | ✔* | Etiket: `kontrol`, `depresyon`, `anksiyete`, `bipolar`, `sizofreni`, `belirsiz` |
 
-\* Eğitim için etiket zorunludur; çıkarımda gerekmez.
+\* Eğitim için etiket zorunludur; çıkarımda gerekmez. Manifest'te bulunan
+etiketlere göre model **ikili** (kontrol/depresyon) veya **çok-sınıflı**
+(kontrol + çeşitli tanılar) olarak otomatik boyutlanır (`infer_classes`).
 
 ## Örnek (`manifest.jsonl`)
 
@@ -55,8 +60,10 @@ ham yapı:
 data/raw/sessions/<session_id>/
     video.mp4        (opsiyonel)
     audio.wav        (opsiyonel)
+    wearable.csv     (opsiyonel — giyilebilir sensör serisi)
     transcript.txt   (opsiyonel)
-    meta.json        -> {"patient_id": "...", "label": "depresyon"}
+    meta.json        -> {"patient_id": "...", "label": "depresyon",
+                         "consent": true, "consent_ref": "ONAM-2025-014"}
 ```
 
 ```bash

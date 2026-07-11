@@ -20,22 +20,42 @@
    HMAC-SHA256 + gizli tuz ile geri döndürülemez takma-kimlik üretir.
    Aynı kişi farklı seanslarda aynı takma-kimliği alır (boylamsal analiz).
 3. **Metin maskeleme**: konuşma transkriptlerindeki TC kimlik, telefon,
-   e-posta gibi kalıntı kişisel veriler NLP'ye girmeden maskelenir.
+   e-posta ve (sezgisel olarak, unvan/hitapla geçen) özel adlar NLP'ye
+   girmeden maskelenir. Kapsamlı ad tespiti ileri fazda Türkçe NER ile
+   güçlendirilecektir.
 4. **Gizli tuz yönetimi**: `PAI_ANON_SALT` üretimde bir sır yöneticisinde
-   (secret manager) tutulur; koda veya depoya asla yazılmaz.
+   (secret manager) tutulur; koda veya depoya asla yazılmaz. Üretim
+   ortamında (`PAI_ENV=production`) varsayılan tuz **kod tarafından
+   reddedilir** (bkz. `config.Settings` doğrulayıcısı).
+
+## Açık Rıza (Consent)
+
+Her `Sample`, `consent` (bool) ve `consent_ref` (imzalı onam referansı)
+alanlarını taşır. Rıza durumu manifest'e `meta.json`'dan taşınır ve
+denetim günlüğüne kaydedilir. Rızasız kayıtların eğitime alınmaması
+klinik SOP ile denetlenir.
+
+## Denetim Günlüğü (Audit Log)
+
+KVKK hesap verebilirlik ilkesi gereği erişim/işleme olayları
+`data/audit.py` ile satır-JSON olarak iz bırakır (varsayılan:
+`<data>/audit/audit.jsonl`; git dışıdır). Günlüğe yalnızca takma-kimlik
+ve olay meta verisi yazılır; doğrudan tanımlayıcı asla yazılmaz. Manifest
+üretimi ve seans analizi olayları kaydedilir.
 
 ## Veri Depolama Kuralları
 
-- Ham medya (`data/raw/`) **git'e girmez** (bkz. `.gitignore`).
+- Ham medya (`data/raw/`) ve denetim günlüğü (`data/audit/`) **git'e
+  girmez** (bkz. `.gitignore`).
 - Veri en az ayrıcalık ilkesiyle, şifreli diskte saklanır.
-- Erişim loglanır; üretimde `diagnose=False` ile hassas iz bırakılmaz.
+- Erişim `data/audit.py` ile loglanır; günlükte hassas iz bırakılmaz.
 
 ## Veri Yaşam Döngüsü
 
 ```
 toplama ─► rıza + etik onay ─► anonimleştirme ─► ön işleme ─► eğitim
-                                                                 │
-                                          saklama süresi sonu ◄──┘
+   │                                                             │
+   └─► denetim günlüğü (audit.py)         saklama süresi sonu ◄──┘
                                           (güvenli imha)
 ```
 

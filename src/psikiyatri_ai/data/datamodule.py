@@ -27,6 +27,7 @@ from sklearn.model_selection import train_test_split
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 
+from ..modalities.wearable.features import NUM_WEARABLE_CHANNELS
 from .batch import ModalityBatch, SampleFeatures
 from .modalities_config import DataConfig
 from .schema import DiagnosisLabel, Sample
@@ -36,6 +37,29 @@ DEFAULT_CLASSES: tuple[str, ...] = (
     DiagnosisLabel.KONTROL.value,
     DiagnosisLabel.DEPRESYON.value,
 )
+
+# Çok-hastalık deney tasarımı için kanonik sınıf sırası (kontrol = 0).
+# Manifest'te bulunan etiketlere göre alt kümesi kullanılır.
+DIAGNOSIS_CLASSES: tuple[str, ...] = (
+    DiagnosisLabel.KONTROL.value,
+    DiagnosisLabel.DEPRESYON.value,
+    DiagnosisLabel.ANKSIYETE.value,
+    DiagnosisLabel.BIPOLAR.value,
+    DiagnosisLabel.SIZOFRENI.value,
+)
+
+
+def infer_classes(samples: Sequence[Sample]) -> list[str]:
+    """Manifest örneklerinde bulunan etiketleri kanonik sırada döndürür.
+
+    Kontrol her zaman ilk sırada (indeks 0) tutulur; böylece ikili/çok-
+    sınıflı metrik semantiği (pozitif = tanı) korunur.
+    """
+    present = {s.label.value for s in samples if s.label is not None}
+    ordered = [c for c in DIAGNOSIS_CLASSES if c in present]
+    # Kanonik listede olmayan etiketleri de sona ekle (ör. 'belirsiz').
+    extra = sorted(present - set(DIAGNOSIS_CLASSES))
+    return ordered + extra
 
 
 class LabelEncoder:
@@ -74,7 +98,7 @@ class FeatureExtractor:
     def __init__(
         self,
         cfg: DataConfig | None = None,
-        modalities: Sequence[str] = ("vision", "audio", "text"),
+        modalities: Sequence[str] = ("vision", "audio", "text", "wearable"),
         data_root: Path | None = None,
     ) -> None:
         self.cfg = cfg or DataConfig()
@@ -120,6 +144,8 @@ class FeatureExtractor:
             feats["audio_mfcc"] = mfcc
             if egemaps is not None:
                 feats["audio_egemaps"] = egemaps
+        if "wearable" in self.modalities and sample.wearable_path is not None:
+            feats["wearable"] = self._extract_wearable(self._resolve(sample.wearable_path))
         if "text" in self.modalities and sample.transcript:
             ids, mask = self._extract_text(sample.transcript)
             feats["text_input_ids"] = ids
@@ -158,6 +184,14 @@ class FeatureExtractor:
         mfcc = torch.from_numpy(af.mfcc.T).float()  # (T, 40)
         egemaps = torch.from_numpy(af.egemaps).float() if af.egemaps is not None else None
         return mfcc, egemaps
+
+    def _extract_wearable(self, wearable_path: Path) -> torch.Tensor:
+        from ..modalities.wearable.features import extract_wearable_features
+
+        wf = extract_wearable_features(
+            wearable_path, sample_rate=self.cfg.wearable_sample_rate
+        )
+        return torch.from_numpy(wf.series).float()  # (T, C)
 
     def _extract_text(self, transcript: str) -> tuple[torch.Tensor, torch.Tensor]:
         from ..modalities.text.preprocess import normalize_text
@@ -217,6 +251,7 @@ class SyntheticDataset(Dataset):
     modalities: tuple[str, ...] = ("vision", "audio")
     t_vision: int = 8
     t_audio: int = 50
+    t_wearable: int = 60
     text_len: int = 24
     vocab_size: int = 32_000
     seed: int = 42
@@ -240,6 +275,10 @@ class SyntheticDataset(Dataset):
         if "audio" in self.modalities:
             feats["audio_mfcc"] = torch.randn(self.t_audio, 40, generator=g)
             feats["audio_egemaps"] = torch.randn(88, generator=g)
+        if "wearable" in self.modalities:
+            feats["wearable"] = torch.randn(
+                self.t_wearable, NUM_WEARABLE_CHANNELS, generator=g
+            )
         if "text" in self.modalities:
             feats["text_input_ids"] = torch.randint(
                 0, self.vocab_size, (self.text_len,), generator=g
@@ -270,6 +309,7 @@ def collate_features(samples: Sequence[SampleFeatures]) -> tuple[ModalityBatch, 
     vision = _collect(samples, "vision")
     mfcc = _collect(samples, "audio_mfcc")
     egemaps = _collect(samples, "audio_egemaps")
+    wearable = _collect(samples, "wearable")
     ids = _collect(samples, "text_input_ids")
     mask = _collect(samples, "text_attention_mask")
 
@@ -277,6 +317,7 @@ def collate_features(samples: Sequence[SampleFeatures]) -> tuple[ModalityBatch, 
         vision=pad_sequence(vision, batch_first=True) if vision else None,
         audio_mfcc=pad_sequence(mfcc, batch_first=True) if mfcc else None,
         audio_egemaps=torch.stack(egemaps) if egemaps else None,
+        wearable=pad_sequence(wearable, batch_first=True) if wearable else None,
         text_input_ids=pad_sequence(ids, batch_first=True) if ids else None,
         text_attention_mask=(
             pad_sequence(mask, batch_first=True) if mask else None
@@ -311,7 +352,7 @@ def build_dataloaders(
     *,
     cfg: DataConfig | None = None,
     classes: Sequence[str] = DEFAULT_CLASSES,
-    modalities: Sequence[str] = ("vision", "audio", "text"),
+    modalities: Sequence[str] = ("vision", "audio", "text", "wearable"),
     batch_size: int = 16,
     val_split: float = 0.2,
     seed: int = 42,
@@ -347,11 +388,13 @@ def build_dataloaders(
 
 __all__ = [
     "DEFAULT_CLASSES",
+    "DIAGNOSIS_CLASSES",
     "FeatureExtractor",
     "LabelEncoder",
     "ManifestDataset",
     "SyntheticDataset",
     "build_dataloaders",
     "collate_features",
+    "infer_classes",
     "load_manifest",
 ]

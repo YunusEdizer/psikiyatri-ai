@@ -38,3 +38,14 @@ def test_anonymize_record_combines_both():
     res = anonymize_record("hasta-42", "TC 12345678901")
     assert res.pseudonym.startswith("pid_")
     assert "12345678901" not in (res.masked_text or "")
+
+
+def test_mask_pii_masks_titled_and_honorific_names():
+    masked = mask_pii("Görüşmede Dr. Ahmet Yılmaz ve Ayşe Hanım hazır bulundu.")
+    assert "Ahmet" not in masked
+    assert "Yılmaz" not in masked
+    assert "Ayşe" not in masked
+    assert "[AD]" in masked
+    # Unvan/hitap korunur (bağlam için)
+    assert "Dr." in masked
+    assert "Hanım" in masked

@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0f766e" />
   <title>Klinik Karar Destek — Psikiyatri AI</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <style>
     :root {
       --bg:#eef2f7; --surface:#ffffff; --surface2:#f6f8fb; --border:#e3e8f0;
@@ -27,9 +30,22 @@
       font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
       background:var(--bg); color:var(--text); font-size:14px; line-height:1.5;
     }
-    .app { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+    .hidden { display:none !important; }
 
-    /* --- Sidebar --- */
+    /* --- Giriş ekranı --- */
+    .login-wrap { min-height:100vh; display:grid; place-items:center; padding:20px; }
+    .login-card { width:100%; max-width:400px; background:var(--surface); border:1px solid var(--border);
+      border-radius:16px; padding:34px 30px; box-shadow:0 8px 30px rgba(16,24,40,.08); }
+    .login-card .brand { justify-content:center; margin-bottom:8px; }
+    .login-card h1 { font-size:1.1rem; text-align:center; margin:8px 0 2px; }
+    .login-card .sub { text-align:center; color:var(--muted); font-size:.8rem; margin-bottom:22px; }
+    .login-err { background:var(--danger-bg); color:var(--danger); border-radius:9px;
+      padding:9px 12px; font-size:.8rem; margin-bottom:12px; }
+    .login-alt { text-align:center; margin-top:16px; font-size:.8rem; }
+    .login-alt a { color:var(--primary); cursor:pointer; font-weight:600; text-decoration:none; }
+
+    /* --- Uygulama iskeleti --- */
+    .app { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
     .side { background:var(--surface); border-right:1px solid var(--border); padding:20px 16px;
       display:flex; flex-direction:column; gap:6px; position:sticky; top:0; height:100vh; }
     .brand { display:flex; align-items:center; gap:11px; padding:6px 6px 18px; }
@@ -38,23 +54,28 @@
     .brand b { font-size:.95rem; display:block; letter-spacing:-.2px; }
     .brand span { font-size:.72rem; color:var(--muted); }
     .nav a { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px;
-      color:var(--muted); text-decoration:none; font-weight:600; font-size:.86rem; }
+      color:var(--muted); text-decoration:none; font-weight:600; font-size:.86rem; cursor:pointer; }
     .nav a.on { background:var(--primary-soft); color:var(--primary); }
     .nav a:hover:not(.on) { background:var(--surface2); }
     .side .foot { margin-top:auto; font-size:.72rem; color:var(--muted); padding:12px 8px 0;
       border-top:1px solid var(--border); }
     .tag { display:inline-block; font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:999px;
       background:var(--warn-bg); color:var(--warn); }
+    .userbox { display:flex; align-items:center; gap:9px; padding:10px 8px; }
+    .userbox .av { width:30px; height:30px; border-radius:50%; background:var(--primary-soft);
+      color:var(--primary); display:grid; place-items:center; font-weight:800; font-size:.8rem; flex:none; }
+    .userbox b { font-size:.8rem; display:block; }
+    .userbox span { font-size:.7rem; color:var(--muted); }
 
-    /* --- Topbar --- */
     .main { display:flex; flex-direction:column; min-width:0; }
     .top { display:flex; align-items:center; gap:12px; padding:16px 26px; background:var(--surface);
       border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
     .top h1 { font-size:1.02rem; margin:0; }
     .top .meta { margin-left:auto; display:flex; align-items:center; gap:14px; color:var(--muted); font-size:.8rem; }
-    .content { padding:24px 26px 48px; display:grid; grid-template-columns:minmax(0,420px) 1fr; gap:22px; align-items:start; }
-    @media (max-width:960px){ .app{grid-template-columns:1fr;} .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;}
-      .nav{display:flex;gap:4px;} .side .foot{display:none;} .content{grid-template-columns:1fr;} }
+    .content { padding:24px 26px 48px; }
+    .cols { display:grid; grid-template-columns:minmax(0,420px) 1fr; gap:22px; align-items:start; }
+    @media (max-width:960px){ .app{grid-template-columns:1fr;} .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;}
+      .nav{display:flex;gap:4px;flex-wrap:wrap;} .side .foot{display:none;} .cols{grid-template-columns:1fr;} .content{padding:16px 14px 40px;} }
 
     .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
       box-shadow:0 1px 2px rgba(16,24,40,.04); }
@@ -62,16 +83,18 @@
     .card > .hd h2 { font-size:.9rem; margin:0; }
     .card > .hd .sub { font-size:.75rem; color:var(--muted); margin-left:auto; }
     .card > .bd { padding:18px; }
+    .card + .card { margin-top:20px; }
 
     label.lbl { display:block; font-size:.74rem; font-weight:700; text-transform:uppercase;
       letter-spacing:.5px; color:var(--muted); margin:0 0 7px; }
     .row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    input[type=text], textarea, select {
+    input[type=text], input[type=password], input[type=number], textarea, select {
       width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:9px;
       background:var(--surface2); color:var(--text); font-family:inherit; font-size:.88rem; }
     input:focus, textarea:focus, select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--ring); }
     textarea { resize:vertical; min-height:96px; }
     .field { margin-top:15px; }
+    .hint { font-size:.72rem; color:var(--muted); margin-top:5px; }
 
     .tabs { display:flex; gap:4px; background:var(--surface2); padding:4px; border-radius:10px; border:1px solid var(--border); }
     .tabs button { flex:1; border:0; background:transparent; color:var(--muted); font-weight:700; font-size:.82rem;
@@ -92,10 +115,13 @@
       padding:12px; border-radius:10px; font-size:.92rem; font-weight:700; font-family:inherit; transition:.15s; }
     .btn:hover { background:var(--primary-d); }
     .btn:disabled { opacity:.55; cursor:default; }
+    .btn.sm { width:auto; margin:0; padding:8px 14px; font-size:.82rem; }
+    .btn.danger { background:var(--danger); }
+    .ghost { background:transparent; border:1px solid var(--border); color:var(--text); padding:8px 14px;
+      border-radius:9px; font-weight:600; font-size:.82rem; cursor:pointer; font-family:inherit; }
     .rng { width:100%; accent-color:var(--primary); }
     .rngrow { display:flex; justify-content:space-between; font-size:.74rem; color:var(--muted); }
 
-    /* --- Report --- */
     .empty { text-align:center; color:var(--muted); padding:56px 20px; }
     .empty .big { font-size:2.2rem; opacity:.35; }
     .repmeta { display:flex; flex-wrap:wrap; gap:18px 26px; font-size:.8rem; margin-bottom:16px; }
@@ -118,11 +144,18 @@
     .bar .fill.d { background:var(--danger); } .bar .fill.k { background:var(--ok); }
 
     table.tbl { width:100%; border-collapse:collapse; font-size:.82rem; }
-    table.tbl td, table.tbl th { text-align:left; padding:8px 6px; border-bottom:1px solid var(--border); }
+    table.tbl td, table.tbl th { text-align:left; padding:9px 8px; border-bottom:1px solid var(--border); }
     table.tbl th { font-size:.7rem; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:700; }
+    tr.rowlink { cursor:pointer; }
+    tr.rowlink:hover td { background:var(--surface2); }
     .pill { display:inline-block; font-size:.72rem; padding:3px 9px; border-radius:999px; background:var(--surface2);
       border:1px solid var(--border); color:var(--muted); }
     .pill.ok { color:var(--ok); }
+    .badge { display:inline-block; font-size:.7rem; font-weight:700; padding:3px 10px; border-radius:999px; }
+    .badge.dusuk { background:var(--ok-bg); color:var(--ok); }
+    .badge.orta { background:var(--warn-bg); color:var(--warn); }
+    .badge.yuksek { background:var(--danger-bg); color:var(--danger); }
+    .badge.role { background:var(--primary-soft); color:var(--primary); }
     .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
     .chip { font-size:.75rem; padding:4px 10px; border-radius:8px; background:var(--danger-bg); color:var(--danger); font-weight:600; }
     .catlbl { font-size:.74rem; font-weight:700; color:var(--text); margin-top:10px; }
@@ -130,231 +163,701 @@
       font-size:.82rem; color:var(--muted); white-space:pre-wrap; max-height:150px; overflow:auto; }
     .note { margin-top:16px; font-size:.76rem; color:var(--muted); background:var(--surface2);
       border:1px dashed var(--border); border-radius:9px; padding:11px 13px; }
-    .actions { display:flex; gap:8px; margin-top:16px; }
-    .ghost { background:transparent; border:1px solid var(--border); color:var(--text); padding:8px 14px;
-      border-radius:9px; font-weight:600; font-size:.82rem; cursor:pointer; font-family:inherit; }
+    .actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
     .spin { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4);
       border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; vertical-align:-2px; }
     @keyframes sp { to { transform:rotate(360deg); } }
-    .hidden { display:none !important; }
+
+    ul.list { margin:6px 0 0; padding-left:18px; font-size:.82rem; }
+    ul.list li { margin:4px 0; }
+    ul.list.warn li { color:var(--warn); }
+    ul.list.danger li { color:var(--danger); }
+
+    .backlink { display:inline-flex; align-items:center; gap:6px; color:var(--primary); font-weight:600;
+      font-size:.82rem; cursor:pointer; margin-bottom:14px; text-decoration:none; }
+
+    .recbtn { display:inline-flex; align-items:center; gap:8px; }
+    .recbtn.rec { background:var(--danger); color:#fff; border-color:var(--danger); }
+
+    #toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--text);
+      color:var(--bg); padding:10px 18px; border-radius:10px; font-size:.84rem; font-weight:600;
+      box-shadow:0 8px 24px rgba(0,0,0,.25); z-index:60; opacity:0; transition:.25s; pointer-events:none; }
+    #toast.show { opacity:1; }
 
     @media print {
-      .side,.top,#panel,.actions,.tag { display:none !important; }
+      .side,.top,.actions,.tag,#toast, .no-print { display:none !important; }
       .app,.content { display:block; } .card { border:none; box-shadow:none; }
       body { background:#fff; }
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <!-- Sidebar -->
+  <!-- ============ GİRİŞ ============ -->
+  <div id="v-login" class="login-wrap">
+    <div class="login-card">
+      <div class="brand"><div class="mark">Ψ</div></div>
+      <h1>Psikiyatri AI — Klinik Karar Destek</h1>
+      <div class="sub">Psikolog ve psikiyatristler için multimodal karar destek paneli</div>
+      <div id="login-err" class="login-err hidden"></div>
+      <label class="lbl">Kullanıcı adı</label>
+      <input type="text" id="l-user" autocomplete="username" />
+      <div class="field">
+        <label class="lbl">Parola</label>
+        <input type="password" id="l-pass" autocomplete="current-password" />
+      </div>
+      <button class="btn" id="l-go">Giriş Yap</button>
+      <div class="login-alt">
+        <a id="l-quick">Girişsiz hızlı analiz (kayıt tutulmaz) →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ UYGULAMA ============ -->
+  <div class="app hidden" id="app">
     <aside class="side">
       <div class="brand">
         <div class="mark">Ψ</div>
         <div><b>Psikiyatri AI</b><span>Karar Destek Sistemi</span></div>
       </div>
-      <nav class="nav">
-        <a href="#" class="on">◧&nbsp; Değerlendirme</a>
+      <nav class="nav" id="mainnav">
+        <a data-view="patients" class="on">▤&nbsp; Hastalar</a>
+        <a data-view="quick">◧&nbsp; Hızlı Analiz</a>
+        <a data-view="admin" id="nav-admin" class="hidden">⚙&nbsp; Yönetim</a>
         <a href="/docs" target="_blank">◱&nbsp; API / Geliştirici</a>
-        <a href="/health" target="_blank">◉&nbsp; Sistem Durumu</a>
       </nav>
+      <div class="userbox" id="userbox">
+        <div class="av" id="u-av">?</div>
+        <div><b id="u-name">—</b><span id="u-role"></span></div>
+      </div>
+      <a class="ghost no-print" id="logout" style="text-align:center">Çıkış yap</a>
       <div class="foot">
         <span class="tag">Prototip · TRL6</span><br /><br />
         Eurotech-1 · v0.1.0<br />Multimodal derin öğrenme
       </div>
     </aside>
 
-    <!-- Main -->
     <div class="main">
       <div class="top">
-        <h1>Klinik Karar Destek</h1>
-        <div class="meta">
-          <span id="today"></span>
-          <span>Değerlendiren: <b id="who">—</b></span>
-        </div>
+        <h1 id="viewtitle">Hastalar</h1>
+        <div class="meta"><span id="today"></span></div>
       </div>
 
       <div class="content">
-        <!-- Sol: giriş -->
-        <div class="card" id="panel">
-          <div class="hd"><h2>Yeni Değerlendirme</h2></div>
-          <div class="bd">
-            <div class="row2">
-              <div><label class="lbl">Hasta takma-kimliği</label>
-                <input type="text" id="pid" placeholder="örn. pid_00427" /></div>
-              <div><label class="lbl">Değerlendiren</label>
-                <input type="text" id="ev" placeholder="Dr. …" /></div>
+        <!-- ====== HASTALAR ====== -->
+        <section id="v-patients">
+          <div class="card">
+            <div class="hd"><h2>Hasta Listesi</h2>
+              <span class="sub" id="pcount"></span>
+              <button class="btn sm no-print" id="btn-newpat" style="margin-left:12px">+ Yeni Hasta</button>
             </div>
-
-            <div class="field">
-              <div class="tabs">
-                <button class="on" data-tab="upload">Kayıt Yükle</button>
-                <button data-tab="demo">Hızlı Demo</button>
+            <div class="bd">
+              <div id="newpat-form" class="hidden" style="margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border)">
+                <div class="row2">
+                  <div><label class="lbl">Kurum içi kimlik (saklanmaz)</label>
+                    <input type="text" id="np-ident" placeholder="dosya no / TC — takma-kimliğe çevrilir" />
+                    <div class="hint">Boş bırakılırsa rastgele takma-kimlik üretilir.</div></div>
+                  <div><label class="lbl">Doğum yılı</label>
+                    <input type="number" id="np-birth" min="1900" max="2026" placeholder="örn. 1990" /></div>
+                </div>
+                <div class="row2 field">
+                  <div><label class="lbl">Cinsiyet</label>
+                    <select id="np-gender"><option value="">—</option><option>kadın</option><option>erkek</option><option>diğer</option></select></div>
+                  <div><label class="lbl">Kültürel bağlam</label>
+                    <input type="text" id="np-ctx" placeholder="örn. TR / göçmen / kırsal" /></div>
+                </div>
+                <div class="field"><label class="lbl">Sevk / başvuru notu</label>
+                  <textarea id="np-note" style="min-height:64px" placeholder="Kişisel veriler otomatik maskelenir…"></textarea></div>
+                <div class="actions">
+                  <button class="btn sm" id="np-save">Kaydet</button>
+                  <button class="ghost" id="np-cancel">Vazgeç</button>
+                </div>
               </div>
+              <table class="tbl">
+                <thead><tr><th>Takma-kimlik</th><th>Doğum yılı</th><th>Görüşme</th><th>Son risk</th><th>Kayıt</th></tr></thead>
+                <tbody id="plist"><tr><td colspan="5" style="color:var(--muted)">Yükleniyor…</td></tr></tbody>
+              </table>
             </div>
-
-            <!-- Upload modu -->
-            <div id="tab-upload">
-              <div class="field">
-                <label class="lbl">Görüntü kaydı</label>
-                <label class="drop" id="d-video">
-                  <span class="ic">🎥</span>
-                  <span><span class="t" id="n-video">Video seç veya sürükle</span>
-                    <span class="h">mp4, mov · yüz ifadesi analizi</span></span>
-                  <input type="file" id="f-video" accept="video/*" />
-                </label>
-              </div>
-              <div class="field">
-                <label class="lbl">Ses kaydı</label>
-                <label class="drop" id="d-audio">
-                  <span class="ic">🎙️</span>
-                  <span><span class="t" id="n-audio">Ses seç veya sürükle</span>
-                    <span class="h">wav, mp3 · ses tonu analizi</span></span>
-                  <input type="file" id="f-audio" accept="audio/*" />
-                </label>
-              </div>
-              <div class="field">
-                <label class="lbl">Konuşma transkripti</label>
-                <textarea id="txt" placeholder="Seans konuşma metnini buraya yapıştırın…"></textarea>
-                <div class="h" style="font-size:.72rem;color:var(--muted);margin-top:5px">
-                  Kişisel veriler (TC, telefon, e-posta) otomatik maskelenir.</div>
-              </div>
-            </div>
-
-            <!-- Demo modu -->
-            <div id="tab-demo" class="hidden">
-              <div class="field">
-                <label class="lbl">Sentetik senaryo</label>
-                <select id="scn">
-                  <option value="rastgele">Rastgele</option>
-                  <option value="depresyon">Depresyon benzeri</option>
-                  <option value="kontrol">Kontrol (sağlıklı) benzeri</option>
-                </select>
-              </div>
-              <div class="field">
-                <label class="lbl">Sinyal gücü <span id="sv" style="color:var(--primary)"></span></label>
-                <input type="range" class="rng" id="sig" min="0" max="1.6" step="0.1" value="0.9" />
-                <div class="rngrow"><span>ayırt edilemez</span><span>güçlü</span></div>
-              </div>
-              <div class="note">Bu mod, eğitilmiş modeli sentetik bir seansla test eder;
-                gerçek hasta verisi kullanmaz.</div>
-            </div>
-
-            <button class="btn" id="go">Analizi Başlat</button>
           </div>
-        </div>
+        </section>
 
-        <!-- Sağ: rapor -->
-        <div class="card">
-          <div class="hd"><h2>Değerlendirme Raporu</h2><span class="sub" id="rmethod"></span></div>
-          <div class="bd">
-            <div id="empty" class="empty">
-              <div class="big">▤</div>
-              <p>Soldan bir değerlendirme başlatın.<br />Rapor burada görünecek.</p>
+        <!-- ====== HASTA PROFİLİ ====== -->
+        <section id="v-patient" class="hidden">
+          <a class="backlink" id="back-patients">← Hasta listesine dön</a>
+          <div class="cols">
+            <div>
+              <div class="card">
+                <div class="hd"><h2>Hasta Profili</h2><span class="sub" id="pp-pseudo"></span></div>
+                <div class="bd">
+                  <div class="repmeta" id="pp-meta"></div>
+                  <div id="pp-note"></div>
+                  <div class="actions no-print">
+                    <button class="btn sm" id="btn-newint">+ Yeni Görüşme</button>
+                    <button class="ghost danger-text hidden" id="btn-delpat" style="color:var(--danger);border-color:var(--danger)">Hastayı sil (KVKK)</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card hidden" id="int-form">
+                <div class="hd"><h2>Yeni Görüşme</h2><span class="sub">analiz + kalıcı kayıt</span></div>
+                <div class="bd">
+                  <div class="field" style="margin-top:0">
+                    <label class="lbl">Konuşma transkripti</label>
+                    <textarea id="if-txt" placeholder="Seans konuşma metnini buraya yapıştırın…"></textarea>
+                    <div class="hint">Kişisel veriler (TC, telefon, e-posta, adlar) otomatik maskelenir.</div>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Ses kaydı</label>
+                    <div style="display:flex; gap:8px; align-items:stretch">
+                      <label class="drop" id="d-audio" style="flex:1">
+                        <span class="ic">🎙️</span>
+                        <span><span class="t" id="n-audio" data-def="Ses dosyası seç">Ses dosyası seç</span>
+                          <span class="h">wav, mp3 · ses tonu analizi</span></span>
+                        <input type="file" id="if-audio" accept="audio/*" />
+                      </label>
+                      <button class="ghost recbtn no-print" id="btn-rec" title="Mikrofonla kaydet">🎙 Kaydet</button>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Görüntü kaydı</label>
+                    <label class="drop" id="d-video">
+                      <span class="ic">🎥</span>
+                      <span><span class="t" id="n-video" data-def="Video seç">Video seç</span>
+                        <span class="h">mp4, mov · yüz ifadesi analizi</span></span>
+                      <input type="file" id="if-video" accept="video/*" />
+                    </label>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Giyilebilir kayıt</label>
+                    <label class="drop" id="d-wear">
+                      <span class="ic">⌚</span>
+                      <span><span class="t" id="n-wear" data-def="Sensör CSV seç">Sensör CSV seç</span>
+                        <span class="h">csv · kalp / EEG / hareket</span></span>
+                      <input type="file" id="if-wear" accept=".csv" />
+                    </label>
+                  </div>
+                  <div class="row2 field">
+                    <div><label class="lbl">Belirti süresi (hafta)</label>
+                      <input type="number" id="if-dur" min="0" max="2600" placeholder="örn. 6" /></div>
+                    <div><label class="lbl">Vaka şiddeti</label>
+                      <select id="if-sev"><option value="">—</option><option value="hafif">Hafif</option>
+                        <option value="orta">Orta</option><option value="şiddetli">Şiddetli</option></select></div>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Doktor / klinisyen notu</label>
+                    <textarea id="if-note" style="min-height:64px" placeholder="Gözlemleriniz… (maskelenir ve analize dâhil edilir)"></textarea>
+                  </div>
+                  <button class="btn" id="if-go">Analiz Et ve Kaydet</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="hd"><h2>Görüşme Geçmişi</h2><span class="sub" id="icount"></span></div>
+                <div class="bd">
+                  <table class="tbl">
+                    <thead><tr><th>Tarih</th><th>Değerlendiren</th><th>Bulgu</th><th>Risk</th></tr></thead>
+                    <tbody id="ilist"></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            <div id="report" class="hidden"></div>
+
+            <div class="card">
+              <div class="hd"><h2>Değerlendirme Raporu</h2><span class="sub" id="rmethod"></span></div>
+              <div class="bd">
+                <div id="rep-empty" class="empty">
+                  <div class="big">▤</div>
+                  <p>Yeni görüşme başlatın veya geçmişten bir kayıt seçin.<br />Rapor burada görünecek.</p>
+                </div>
+                <div id="report" class="hidden"></div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
+
+        <!-- ====== HIZLI ANALİZ (kayıtsız) ====== -->
+        <section id="v-quick" class="hidden">
+          <div class="cols">
+            <div class="card">
+              <div class="hd"><h2>Hızlı Değerlendirme</h2><span class="sub">kayıt tutulmaz</span></div>
+              <div class="bd">
+                <div class="row2">
+                  <div><label class="lbl">Hasta takma-kimliği</label>
+                    <input type="text" id="q-pid" placeholder="örn. pid_00427" /></div>
+                  <div><label class="lbl">Değerlendiren</label>
+                    <input type="text" id="q-ev" placeholder="Dr. …" /></div>
+                </div>
+                <div class="field">
+                  <div class="tabs">
+                    <button class="on" data-tab="upload">Kayıt Yükle</button>
+                    <button data-tab="demo">Hızlı Demo</button>
+                  </div>
+                </div>
+                <div id="tab-upload">
+                  <div class="field">
+                    <label class="lbl">Ses kaydı</label>
+                    <div style="display:flex; gap:8px; align-items:stretch">
+                      <label class="drop" id="qd-audio" style="flex:1">
+                        <span class="ic">🎙️</span>
+                        <span><span class="t" id="qn-audio" data-def="Ses dosyası seç">Ses dosyası seç</span>
+                          <span class="h">wav, mp3 · ses tonu analizi</span></span>
+                        <input type="file" id="qf-audio" accept="audio/*" />
+                      </label>
+                      <button class="ghost recbtn no-print" id="q-btn-rec" title="Mikrofonla kaydet">🎙 Kaydet</button>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Görüntü kaydı</label>
+                    <label class="drop" id="qd-video">
+                      <span class="ic">🎥</span>
+                      <span><span class="t" id="qn-video" data-def="Video seç">Video seç</span>
+                        <span class="h">mp4, mov · yüz ifadesi analizi</span></span>
+                      <input type="file" id="qf-video" accept="video/*" />
+                    </label>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Giyilebilir kayıt</label>
+                    <label class="drop" id="qd-wear">
+                      <span class="ic">⌚</span>
+                      <span><span class="t" id="qn-wear" data-def="Sensör CSV seç">Sensör CSV seç</span>
+                        <span class="h">csv · kalp / EEG / hareket sensörleri</span></span>
+                      <input type="file" id="qf-wear" accept=".csv" />
+                    </label>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Konuşma transkripti</label>
+                    <textarea id="q-txt" placeholder="Seans konuşma metnini buraya yapıştırın…"></textarea>
+                    <div class="hint">Kişisel veriler (TC, telefon, e-posta) otomatik maskelenir.</div>
+                  </div>
+                </div>
+                <div id="tab-demo" class="hidden">
+                  <div class="field">
+                    <label class="lbl">Sentetik senaryo</label>
+                    <select id="scn">
+                      <option value="rastgele">Rastgele</option>
+                      <option value="depresyon">Depresyon benzeri</option>
+                      <option value="anksiyete">Anksiyete benzeri</option>
+                      <option value="bipolar">Bipolar benzeri</option>
+                      <option value="sizofreni">Şizofreni benzeri</option>
+                      <option value="kontrol">Kontrol (sağlıklı) benzeri</option>
+                    </select>
+                    <div class="hint">Tanı senaryoları yalnızca çok-sınıflı model yüklüyse ayrışır;
+                      ikili modelde kontrol dışı senaryolar bulgu olarak değerlendirilir.</div>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Modaliteler</label>
+                    <div class="chips" id="demo-mods">
+                      <label class="pill"><input type="checkbox" value="vision" checked /> Görüntü</label>
+                      <label class="pill"><input type="checkbox" value="audio" checked /> Ses</label>
+                      <label class="pill"><input type="checkbox" value="wearable" /> Giyilebilir</label>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="lbl">Sinyal gücü <span id="sv" style="color:var(--primary)"></span></label>
+                    <input type="range" class="rng" id="sig" min="0" max="1.6" step="0.1" value="0.9" />
+                    <div class="rngrow"><span>ayırt edilemez</span><span>güçlü</span></div>
+                  </div>
+                  <div class="note">Bu mod, eğitilmiş modeli sentetik bir seansla test eder;
+                    gerçek hasta verisi kullanmaz.</div>
+                </div>
+                <button class="btn" id="q-go">Analizi Başlat</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><h2>Değerlendirme Raporu</h2><span class="sub" id="q-rmethod"></span></div>
+              <div class="bd">
+                <div id="q-rep-empty" class="empty">
+                  <div class="big">▤</div>
+                  <p>Soldan bir değerlendirme başlatın.<br />Rapor burada görünecek.</p>
+                </div>
+                <div id="q-report" class="hidden"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====== YÖNETİM ====== -->
+        <section id="v-admin" class="hidden">
+          <div class="cols">
+            <div class="card">
+              <div class="hd"><h2>Yeni Kullanıcı</h2><span class="sub">yalnızca yönetici</span></div>
+              <div class="bd">
+                <div class="row2">
+                  <div><label class="lbl">Kullanıcı adı</label><input type="text" id="nu-user" /></div>
+                  <div><label class="lbl">Ad Soyad</label><input type="text" id="nu-name" /></div>
+                </div>
+                <div class="row2 field">
+                  <div><label class="lbl">Parola (min 8)</label><input type="password" id="nu-pass" /></div>
+                  <div><label class="lbl">Rol</label>
+                    <select id="nu-role">
+                      <option value="psikolog">Psikolog</option>
+                      <option value="psikiyatrist">Psikiyatrist</option>
+                      <option value="yonetici">Yönetici</option>
+                    </select></div>
+                </div>
+                <button class="btn" id="nu-save">Kullanıcı Oluştur</button>
+                <div class="sec">
+                  <label class="lbl">Kayıtlı kullanıcılar</label>
+                  <table class="tbl"><thead><tr><th>Kullanıcı</th><th>Ad</th><th>Rol</th></tr></thead>
+                    <tbody id="ulist"></tbody></table>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="hd"><h2>Denetim Günlüğü (KVKK)</h2>
+                <button class="ghost no-print" id="btn-audit" style="margin-left:auto">Yenile</button></div>
+              <div class="bd">
+                <table class="tbl">
+                  <thead><tr><th>Zaman</th><th>Olay</th><th>Özne</th><th>Ayrıntı</th></tr></thead>
+                  <tbody id="alist"><tr><td colspan="4" style="color:var(--muted)">—</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   </div>
 
+  <div id="toast"></div>
+
   <script>
+    // ================= yardımcılar =================
     const $ = (s) => document.querySelector(s);
-    const esc = (s) => (s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    const pct = (x) => (x * 100).toFixed(1) + "%";
+    const fmtDate = (s) => (s || "").replace("T", " ").slice(0, 16);
+    const modName = {
+      vision: "Görüntü (yüz ifadesi)", audio: "Ses (ton analizi)",
+      text: "Metin (konuşma içeriği)", wearable: "Giyilebilir (sensör)",
+    };
+    const clsLabel = {
+      kontrol: "Kontrol (sağlıklı)", depresyon: "Depresyon", anksiyete: "Anksiyete",
+      bipolar: "Bipolar", sizofreni: "Şizofreni", belirsiz: "Belirsiz",
+    };
+    const roleLabel = { yonetici: "Yönetici", psikiyatrist: "Psikiyatrist", psikolog: "Psikolog" };
+    const topProb = (p) => Math.max(...Object.values(p));
+    const predText = (lbl) =>
+      lbl === "kontrol" ? "Belirgin bulgu yok" : ((clsLabel[lbl] || lbl) + " bulgusu öne çıkıyor");
+    const sevClassOf = (s) => ({ "düşük": "dusuk", "orta": "orta", "yüksek": "yuksek" }[s] || "dusuk");
+
+    let toastTimer = null;
+    function toast(msg) {
+      const t = $("#toast");
+      t.textContent = msg; t.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove("show"), 3800);
+    }
+
     $("#today").textContent = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 
-    // Değerlendiren adını üst bara yansıt
-    $("#ev").oninput = () => ($("#who").textContent = $("#ev").value.trim() || "—");
+    // ================= oturum =================
+    const S = {
+      get token() { return sessionStorage.getItem("pai_token"); },
+      set token(v) { v ? sessionStorage.setItem("pai_token", v) : sessionStorage.removeItem("pai_token"); },
+      user: null,
+      patient: null,   // aktif hasta detayı
+    };
 
-    // Sekmeler
-    let mode = "upload";
-    document.querySelectorAll(".tabs button").forEach((b) => {
-      b.onclick = () => {
-        document.querySelectorAll(".tabs button").forEach((x) => x.classList.remove("on"));
-        b.classList.add("on"); mode = b.dataset.tab;
-        $("#tab-upload").classList.toggle("hidden", mode !== "upload");
-        $("#tab-demo").classList.toggle("hidden", mode !== "demo");
+    async function api(path, opts = {}) {
+      const headers = opts.headers || {};
+      if (S.token) headers["Authorization"] = "Bearer " + S.token;
+      let body = opts.body;
+      if (opts.json !== undefined) { headers["Content-Type"] = "application/json"; body = JSON.stringify(opts.json); }
+      const res = await fetch(path, { method: opts.method || (body ? "POST" : "GET"), headers, body });
+      if (res.status === 401 && S.token) { logout(); throw new Error("Oturum süresi doldu. Yeniden giriş yapın."); }
+      if (!res.ok) {
+        let detail = "Sunucu hatası: " + res.status;
+        try { const j = await res.json(); if (j.detail) detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch {}
+        throw new Error(detail);
+      }
+      return res.status === 204 ? null : res.json();
+    }
+
+    async function login() {
+      const err = $("#login-err"); err.classList.add("hidden");
+      try {
+        const body = new URLSearchParams({ username: $("#l-user").value.trim(), password: $("#l-pass").value });
+        const res = await fetch("/auth/login", { method: "POST", body });
+        if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.detail || "Giriş başarısız."); }
+        const data = await res.json();
+        S.token = data.access_token;
+        S.user = data;
+        showApp();
+      } catch (e) { err.textContent = e.message; err.classList.remove("hidden"); }
+    }
+
+    function logout() {
+      S.token = null; S.user = null;
+      $("#app").classList.add("hidden");
+      $("#v-login").classList.remove("hidden");
+    }
+
+    function showApp(quickOnly = false) {
+      $("#v-login").classList.add("hidden");
+      $("#app").classList.remove("hidden");
+      if (S.user) {
+        $("#u-name").textContent = S.user.full_name || S.user.username;
+        $("#u-role").textContent = roleLabel[S.user.role] || S.user.role;
+        $("#u-av").textContent = (S.user.full_name || S.user.username).slice(0, 1).toUpperCase();
+        $("#nav-admin").classList.toggle("hidden", S.user.role !== "yonetici");
+        $("#userbox").classList.remove("hidden"); $("#logout").textContent = "Çıkış yap";
+        setView("patients"); loadPatients();
+      } else {
+        // girişsiz mod: yalnızca hızlı analiz
+        $("#u-name").textContent = "Misafir"; $("#u-role").textContent = "kayıtsız mod"; $("#u-av").textContent = "M";
+        $("#nav-admin").classList.add("hidden");
+        $("#logout").textContent = "Girişe dön";
+        setView("quick");
+      }
+    }
+
+    // sayfa açılışı: geçerli oturum var mı?
+    (async () => {
+      if (!S.token) return;
+      try { S.user = await api("/auth/me"); S.user.role = S.user.role; showApp(); } catch { logout(); }
+    })();
+
+    $("#l-go").onclick = login;
+    $("#l-pass").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
+    $("#l-quick").onclick = () => { S.user = null; showApp(true); };
+    $("#logout").onclick = logout;
+
+    // ================= görünüm yönetimi =================
+    const VIEWS = { patients: "Hastalar", patient: "Hasta Profili", quick: "Hızlı Analiz", admin: "Yönetim" };
+    function setView(name) {
+      for (const v of Object.keys(VIEWS)) $("#v-" + v).classList.toggle("hidden", v !== name);
+      $("#viewtitle").textContent = VIEWS[name];
+      document.querySelectorAll("#mainnav a[data-view]").forEach((a) => {
+        a.classList.toggle("on", a.dataset.view === name || (name === "patient" && a.dataset.view === "patients"));
+      });
+    }
+    document.querySelectorAll("#mainnav a[data-view]").forEach((a) => {
+      a.onclick = () => {
+        const v = a.dataset.view;
+        if (v !== "quick" && !S.user) { toast("Bu bölüm için giriş yapmalısınız."); return; }
+        setView(v);
+        if (v === "patients") loadPatients();
+        if (v === "admin") { loadUsers(); loadAudit(); }
       };
     });
+    $("#back-patients").onclick = () => { setView("patients"); loadPatients(); };
 
-    // Dosya seçim etiketleri
-    function wireDrop(id, input, name) {
-      $(input).onchange = () => {
-        const f = $(input).files[0];
-        $(name).textContent = f ? f.name : $(name).dataset.def;
-        $(id).classList.toggle("has", !!f);
+    // ================= hasta listesi =================
+    async function loadPatients() {
+      try {
+        const list = await api("/patients");
+        $("#pcount").textContent = list.length + " kayıt";
+        $("#plist").innerHTML = list.length ? list.map((p) => `
+          <tr class="rowlink" onclick="openPatient(${p.id})">
+            <td><b>${esc(p.pseudonym)}</b></td>
+            <td>${p.birth_year ?? "—"}</td>
+            <td>${p.interview_count}</td>
+            <td>${p.last_risk_level ? `<span class="badge ${sevClassOf(p.last_risk_level)}">${esc(p.last_risk_level)}</span>` : "—"}</td>
+            <td>${fmtDate(p.created_at)}</td>
+          </tr>`).join("")
+          : `<tr><td colspan="5" style="color:var(--muted)">Henüz hasta kaydı yok. “+ Yeni Hasta” ile başlayın.</td></tr>`;
+      } catch (e) { toast(e.message); }
+    }
+
+    $("#btn-newpat").onclick = () => $("#newpat-form").classList.toggle("hidden");
+    $("#np-cancel").onclick = () => $("#newpat-form").classList.add("hidden");
+    $("#np-save").onclick = async () => {
+      try {
+        const p = await api("/patients", { json: {
+          identifier: $("#np-ident").value.trim() || null,
+          birth_year: $("#np-birth").value ? parseInt($("#np-birth").value, 10) : null,
+          gender: $("#np-gender").value || null,
+          cultural_context: $("#np-ctx").value.trim() || null,
+          referral_note: $("#np-note").value.trim() || null,
+        }});
+        $("#newpat-form").classList.add("hidden");
+        ["#np-ident", "#np-birth", "#np-ctx", "#np-note"].forEach((s) => ($(s).value = ""));
+        toast("Hasta kaydedildi: " + p.pseudonym);
+        loadPatients();
+      } catch (e) { toast(e.message); }
+    };
+
+    // ================= hasta profili =================
+    window.openPatient = async (id) => {
+      try {
+        const p = await api("/patients/" + id);
+        S.patient = p;
+        $("#pp-pseudo").textContent = p.pseudonym;
+        $("#pp-meta").innerHTML = `
+          <div><span>Takma-kimlik</span><b>${esc(p.pseudonym)}</b></div>
+          <div><span>Doğum yılı</span><b>${p.birth_year ?? "—"}</b></div>
+          <div><span>Cinsiyet</span><b>${esc(p.gender || "—")}</b></div>
+          <div><span>Kültürel bağlam</span><b>${esc(p.cultural_context || "—")}</b></div>
+          <div><span>Kayıt</span><b>${fmtDate(p.created_at)}</b></div>`;
+        $("#pp-note").innerHTML = p.referral_note_masked
+          ? `<label class="lbl">Sevk / başvuru notu</label><div class="pre">${esc(p.referral_note_masked)}</div>` : "";
+        $("#btn-delpat").classList.toggle("hidden", !(S.user && S.user.role === "yonetici"));
+        renderInterviews(p.interviews || []);
+        $("#int-form").classList.add("hidden");
+        $("#report").classList.add("hidden"); $("#rep-empty").classList.remove("hidden");
+        $("#rmethod").textContent = "";
+        setView("patient");
+      } catch (e) { toast(e.message); }
+    };
+
+    function renderInterviews(list) {
+      $("#icount").textContent = list.length + " görüşme";
+      $("#ilist").innerHTML = list.length ? list.map((i) => `
+        <tr class="rowlink" onclick="openInterview(${i.id})">
+          <td>${fmtDate(i.created_at)}</td>
+          <td>${esc(i.evaluator || "—")}</td>
+          <td>${i.predicted_label ? esc(clsLabel[i.predicted_label] || i.predicted_label) : "—"}</td>
+          <td>${i.risk_level ? `<span class="badge ${sevClassOf(i.risk_level)}">${esc(i.risk_level)}</span>` : "—"}</td>
+        </tr>`).join("")
+        : `<tr><td colspan="4" style="color:var(--muted)">Henüz görüşme yok.</td></tr>`;
+    }
+
+    $("#btn-newint").onclick = () => $("#int-form").classList.toggle("hidden");
+    $("#btn-delpat").onclick = async () => {
+      if (!S.patient) return;
+      if (!confirm(`${S.patient.pseudonym} hastasının TÜM kayıtları kalıcı olarak silinecek (KVKK unutulma hakkı). Emin misiniz?`)) return;
+      try {
+        await api("/patients/" + S.patient.id, { method: "DELETE" });
+        toast("Hasta ve bağlı tüm kayıtlar silindi.");
+        setView("patients"); loadPatients();
+      } catch (e) { toast(e.message); }
+    };
+
+    window.openInterview = async (id) => {
+      try {
+        const d = await api("/interviews/" + id);
+        renderReport(d, "#report", "#rep-empty", "#rmethod");
+      } catch (e) { toast(e.message); }
+    };
+
+    // dosya seçim etiketleri
+    function wireDrop(dropSel, inputSel, nameSel) {
+      $(inputSel).onchange = () => {
+        const f = $(inputSel).files[0];
+        $(nameSel).textContent = f ? f.name : $(nameSel).dataset.def;
+        $(dropSel).classList.toggle("has", !!f);
       };
     }
-    $("#n-video").dataset.def = "Video seç veya sürükle";
-    $("#n-audio").dataset.def = "Ses seç veya sürükle";
-    wireDrop("#d-video", "#f-video", "#n-video");
-    wireDrop("#d-audio", "#f-audio", "#n-audio");
+    wireDrop("#d-video", "#if-video", "#n-video");
+    wireDrop("#d-audio", "#if-audio", "#n-audio");
+    wireDrop("#d-wear", "#if-wear", "#n-wear");
+    wireDrop("#qd-video", "#qf-video", "#qn-video");
+    wireDrop("#qd-audio", "#qf-audio", "#qn-audio");
+    wireDrop("#qd-wear", "#qf-wear", "#qn-wear");
 
-    // Sinyal slider
-    const sig = $("#sig"), sv = $("#sv");
-    const showSig = () => (sv.textContent = parseFloat(sig.value).toFixed(1));
-    sig.oninput = showSig; showSig();
+    // ================= mikrofon kaydı (PWA / mobil) =================
+    function makeRecorder(btnSel, dropSel, nameSel) {
+      let mediaRec = null, chunks = [], blob = null;
+      const btn = $(btnSel);
+      btn.onclick = async () => {
+        if (mediaRec && mediaRec.state === "recording") { mediaRec.stop(); return; }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          chunks = [];
+          mediaRec = new MediaRecorder(stream);
+          mediaRec.ondataavailable = (e) => chunks.push(e.data);
+          mediaRec.onstop = () => {
+            blob = new Blob(chunks, { type: mediaRec.mimeType || "audio/webm" });
+            stream.getTracks().forEach((t) => t.stop());
+            btn.classList.remove("rec"); btn.textContent = "🎙 Kaydet";
+            $(nameSel).textContent = "mikrofon kaydı (" + Math.round(blob.size / 1024) + " KB)";
+            $(dropSel).classList.add("has");
+          };
+          mediaRec.start();
+          btn.classList.add("rec"); btn.textContent = "■ Durdur";
+        } catch { toast("Mikrofona erişilemedi. Tarayıcı izinlerini kontrol edin."); }
+      };
+      return { take: () => { const b = blob; return b; }, clear: () => { blob = null; } };
+    }
+    const intRec = makeRecorder("#btn-rec", "#d-audio", "#n-audio");
+    const quickRec = makeRecorder("#q-btn-rec", "#qd-audio", "#qn-audio");
 
-    // Analiz
-    $("#go").onclick = async () => {
-      const btn = $("#go"), old = btn.innerHTML;
+    // ================= görüşme oluşturma =================
+    $("#if-go").onclick = async () => {
+      if (!S.patient) return;
+      const btn = $("#if-go"), old = btn.innerHTML;
       btn.disabled = true; btn.innerHTML = '<span class="spin"></span> İşleniyor…';
       try {
-        if (mode === "upload") await runUpload();
-        else await runDemo();
-      } catch (e) { alert(e.message); }
+        const fd = new FormData();
+        fd.append("transcript", $("#if-txt").value);
+        if ($("#if-dur").value) fd.append("symptom_duration_weeks", $("#if-dur").value);
+        fd.append("severity", $("#if-sev").value);
+        fd.append("doctor_note", $("#if-note").value);
+        if ($("#if-video").files[0]) fd.append("video", $("#if-video").files[0]);
+        const rec = intRec.take();
+        if ($("#if-audio").files[0]) fd.append("audio", $("#if-audio").files[0]);
+        else if (rec) fd.append("audio", rec, "mikrofon-kaydi.webm");
+        if ($("#if-wear").files[0]) fd.append("wearable", $("#if-wear").files[0]);
+        const res = await fetch(`/patients/${S.patient.id}/interviews`, {
+          method: "POST", headers: { Authorization: "Bearer " + S.token }, body: fd,
+        });
+        if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.detail || ("Sunucu hatası: " + res.status)); }
+        const d = await res.json();
+        renderReport(d, "#report", "#rep-empty", "#rmethod");
+        $("#int-form").classList.add("hidden");
+        openPatientSilently(S.patient.id);
+        toast("Görüşme kaydedildi: " + d.session_id);
+      } catch (e) { toast(e.message); }
       finally { btn.disabled = false; btn.innerHTML = old; }
     };
 
-    async function runUpload() {
-      const fd = new FormData();
-      fd.append("pseudonym", $("#pid").value);
-      fd.append("evaluator", $("#ev").value);
-      fd.append("transcript", $("#txt").value);
-      if ($("#f-video").files[0]) fd.append("video", $("#f-video").files[0]);
-      if ($("#f-audio").files[0]) fd.append("audio", $("#f-audio").files[0]);
-      const res = await fetch("/session/analyze", { method: "POST", body: fd });
-      if (res.status === 422) throw new Error("En az bir kayıt (video/ses) veya transkript girin.");
-      if (!res.ok) throw new Error("Sunucu hatası: " + res.status);
-      renderSession(await res.json());
+    async function openPatientSilently(id) {
+      try { const p = await api("/patients/" + id); S.patient = p; renderInterviews(p.interviews || []); } catch {}
     }
 
-    async function runDemo() {
-      const res = await fetch("/demo/predict", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenario: $("#scn").value, signal: parseFloat(sig.value),
-          seed: Math.floor(Math.random() * 1e9), modalities: ["vision", "audio"] }),
-      });
-      if (!res.ok) throw new Error("Sunucu hatası: " + res.status);
-      renderDemo(await res.json());
-    }
-
-    function show() { $("#empty").classList.add("hidden"); $("#report").classList.remove("hidden"); }
-    const pct = (x) => (x * 100).toFixed(1) + "%";
-    const modName = { vision: "Görüntü (yüz ifadesi)", audio: "Ses (ton analizi)", text: "Metin (konuşma içeriği)" };
-
+    // ================= rapor çizimi =================
     function probBars(p) {
-      const k = p.kontrol ?? 0, d = p.depresyon ?? 0;
-      return `
-        <div class="bar"><div class="t"><span>Depresyon bulgusu</span><b>${pct(d)}</b></div>
-          <div class="track"><div class="fill d" style="width:${pct(d)}"></div></div></div>
-        <div class="bar"><div class="t"><span>Kontrol (sağlıklı)</span><b>${pct(k)}</b></div>
-          <div class="track"><div class="fill k" style="width:${pct(k)}"></div></div></div>`;
+      return Object.entries(p).sort((a, b) => b[1] - a[1]).map(([k, v]) => {
+        const cls = k === "kontrol" ? "k" : "d";
+        return `<div class="bar"><div class="t"><span>${clsLabel[k] || k}</span><b>${pct(v)}</b></div>
+          <div class="track"><div class="fill ${cls}" style="width:${pct(v)}"></div></div></div>`;
+      }).join("");
+    }
+    function contribBars(list) {
+      return (list || []).map((c) => `
+        <div class="bar"><div class="t"><span>${modName[c.modality] || c.modality}</span><b>${(c.weight*100).toFixed(0)}%</b></div>
+          <div class="track"><div class="fill" style="width:${(c.weight*100).toFixed(0)}%"></div></div></div>`).join("");
     }
 
-    function renderSession(d) {
-      show();
-      $("#rmethod").textContent = d.method !== "-" ? d.method : "";
-      $("#who").textContent = d.evaluator !== "-" ? d.evaluator : "—";
-      const sev = d.risk_level || "—";
-      const sevClass = { "düşük": "dusuk", "orta": "orta", "yüksek": "yuksek" }[sev] || "dusuk";
+    function decisionSection(dec) {
+      if (!dec) return "";
+      let html = `<div class="sec"><label class="lbl">Karar Destek Profili</label>`;
+      if (dec.diagnosis_profile && dec.diagnosis_profile.length) {
+        html += dec.diagnosis_profile.map((d) => {
+          const support = d.support && d.support.length
+            ? `<div class="hint">↳ ${esc(d.support.join(" · "))}</div>` : "";
+          return `<div class="bar"><div class="t"><span>${esc(d.label_tr)}</span><b>${pct(d.probability)}</b></div>
+            <div class="track"><div class="fill ${d.label === "kontrol" ? "k" : "d"}" style="width:${pct(d.probability)}"></div></div>${support}</div>`;
+        }).join("");
+      }
+      if (dec.confidence) {
+        html += `<div class="catlbl">Güven düzeyi: <span class="badge ${dec.confidence.level === "yüksek" ? "dusuk" : dec.confidence.level === "orta" ? "orta" : "yuksek"}">${esc(dec.confidence.level)}</span></div>`;
+        if (dec.confidence.warnings && dec.confidence.warnings.length)
+          html += `<ul class="list warn">${dec.confidence.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>`;
+      }
+      if (dec.risk && dec.risk.factors && dec.risk.factors.length)
+        html += `<div class="catlbl">Risk etkenleri</div><ul class="list danger">${dec.risk.factors.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>`;
+      if (dec.clinical_findings && dec.clinical_findings.length)
+        html += `<div class="catlbl">Klinik bulgular</div><ul class="list">${dec.clinical_findings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>`;
+      if (dec.recommendations && dec.recommendations.length)
+        html += `<div class="catlbl">Öneriler</div><ul class="list">${dec.recommendations.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`;
+      html += `</div>`;
+      return html;
+    }
 
-      let banner = "";
+    function renderReport(d, repSel, emptySel, methodSel) {
+      $(emptySel).classList.add("hidden");
+      $(repSel).classList.remove("hidden");
+      $(methodSel).textContent = d.method && d.method !== "-" ? d.method : "";
+      const sev = d.risk_level || "—";
+      const sevClass = sevClassOf(sev);
+
+      let banner;
       if (d.analysis_available) {
-        const label = d.predicted_label === "depresyon" ? "Depresyon bulgusu öne çıkıyor" : "Belirgin bulgu yok";
         banner = `<div class="banner ${sevClass}"><span class="sev">${sev} risk</span>
-          <div class="txt"><b>${label}</b><span>ön analiz güveni: ${pct(Math.max(d.probabilities.kontrol, d.probabilities.depresyon))}${d.high_risk ? " · ⚠ yüksek-risk ifadesi saptandı" : ""}</span></div></div>`;
+          <div class="txt"><b>${predText(d.predicted_label)}</b>
+          <span>güven: ${pct(topProb(d.probabilities))}${d.high_risk ? " · ⚠ yüksek-risk ifadesi saptandı" : ""}</span></div></div>`;
       } else {
         banner = `<div class="banner orta"><span class="sev">bilgi</span>
           <div class="txt"><b>Otomatik skorlama yapılmadı</b><span>${esc(d.note || "Transkript gerekli.")}</span></div></div>`;
@@ -368,48 +871,158 @@
             d.matched_indicators[c].map((t) => `<span class="chip">${esc(t)}</span>`).join("") + `</div>`).join("") + `</div>`;
       }
 
-      const rows = (d.received || []).map((f) => `<tr><td>${modName[f.modality] || f.modality}</td>
-        <td>${esc(f.filename)}</td><td>${f.size_kb} KB</td>
-        <td><span class="pill">alındı · tam hatta işlenecek</span></td></tr>`).join("");
+      const scored = new Set(d.scored_modalities || []);
+      const rows = (d.received || []).map((f) => {
+        const st = scored.has(f.modality)
+          ? `<span class="pill ok">analiz edildi</span>`
+          : `<span class="pill">alındı · tam hatta işlenecek</span>`;
+        return `<tr><td>${modName[f.modality] || f.modality}</td>
+        <td>${esc(f.filename)}</td><td>${f.size_kb} KB</td><td>${st}</td></tr>`;
+      }).join("");
       const textRow = d.transcript_preview != null
         ? `<tr><td>${modName.text}</td><td>transkript</td><td>${d.transcript_preview.length} krk</td>
            <td><span class="pill ok">analiz edildi</span></td></tr>` : "";
 
-      $("#report").innerHTML = `
+      const dlSection = (d.modality_contributions && d.modality_contributions.length)
+        ? `<div class="sec"><label class="lbl">Modalite katkısı (dikkat ağırlığı)</label>${contribBars(d.modality_contributions)}</div>
+           <div class="sec"><label class="lbl">Modaliteler arası uyumsuzluk</label>
+             <div class="bar"><div class="t"><span>uyum ⟷ uyumsuzluk</span><b>${(d.incongruence ?? 0).toFixed(2)}</b></div>
+             <div class="track"><div class="fill" style="width:${((d.incongruence ?? 0)*100).toFixed(0)}%"></div></div></div></div>`
+        : "";
+
+      const clinMeta = [];
+      if (d.symptom_duration_weeks != null) clinMeta.push(`<div><span>Belirti süresi</span><b>${d.symptom_duration_weeks} hafta</b></div>`);
+      if (d.severity) clinMeta.push(`<div><span>Vaka şiddeti</span><b>${esc(d.severity)}</b></div>`);
+
+      const notesSec = (d.notes && d.notes.length)
+        ? `<div class="sec"><label class="lbl">Klinisyen notları</label>` +
+          d.notes.map((n) => `<div class="pre" style="margin-top:6px"><b style="color:var(--text)">${esc(n.author || "—")}</b> · ${fmtDate(n.created_at)}<br />${esc(n.content_masked)}</div>`).join("") + `</div>`
+        : "";
+
+      const mediaTable = (rows || textRow)
+        ? `<div class="sec"><label class="lbl">Alınan modaliteler</label>
+            <table class="tbl"><thead><tr><th>Modalite</th><th>Kaynak</th><th>Boyut</th><th>Durum</th></tr></thead>
+            <tbody>${rows}${textRow}</tbody></table></div>` : "";
+
+      $(repSel).innerHTML = `
         <div class="repmeta">
           <div><span>Seans</span><b>${esc(d.session_id)}</b></div>
           <div><span>Takma-kimlik</span><b>${esc(d.pseudonym)}</b></div>
           <div><span>Değerlendiren</span><b>${esc(d.evaluator)}</b></div>
-          <div><span>Tarih</span><b>${esc(d.created_at.replace("T", " ").slice(0, 16))}</b></div>
+          <div><span>Tarih</span><b>${fmtDate(d.created_at)}</b></div>
+          ${clinMeta.join("")}
         </div>
         ${banner}
-        ${d.analysis_available ? `<div class="sec"><label class="lbl">Olasılık dağılımı</label>${probBars(d.probabilities)}</div>` : ""}
+        ${d.analysis_available && d.probabilities ? `<div class="sec"><label class="lbl">Olasılık dağılımı</label>${probBars(d.probabilities)}</div>` : ""}
+        ${decisionSection(d.decision)}
+        ${dlSection}
         ${indicators}
-        <div class="sec"><label class="lbl">Alınan modaliteler</label>
-          <table class="tbl"><thead><tr><th>Modalite</th><th>Kaynak</th><th>Boyut</th><th>Durum</th></tr></thead>
-          <tbody>${rows}${textRow || (rows ? "" : `<tr><td colspan="4" style="color:var(--muted)">Kayıt yok</td></tr>`)}</tbody></table></div>
+        ${mediaTable}
         ${d.transcript_preview ? `<div class="sec"><label class="lbl">Maskeli transkript (önizleme)</label><div class="pre">${esc(d.transcript_preview)}</div></div>` : ""}
+        ${notesSec}
         <div class="note">${esc(d.prototype_note)}<br /><br /><b>Uyarı:</b> ${esc(d.disclaimer)}</div>
-        <div class="actions"><button class="ghost" onclick="window.print()">🖨 Raporu yazdır</button></div>`;
+        <div class="actions no-print"><button class="ghost" onclick="window.print()">🖨 Raporu yazdır</button></div>`;
     }
 
-    function renderDemo(d) {
-      show();
-      $("#rmethod").textContent = "Sentetik demo · eğitilmiş model";
-      const contrib = d.modality_contributions.map((c) => `
-        <div class="bar"><div class="t"><span>${modName[c.modality] || c.modality}</span><b>${(c.weight*100).toFixed(0)}%</b></div>
-          <div class="track"><div class="fill" style="width:${(c.weight*100).toFixed(0)}%"></div></div></div>`).join("");
-      const label = d.predicted_label === "depresyon" ? "Depresyon bulgusu öne çıkıyor" : "Belirgin bulgu yok";
-      const sevClass = d.predicted_label === "depresyon" ? "yuksek" : "dusuk";
-      $("#report").innerHTML = `
+    // ================= hızlı analiz (kayıtsız) =================
+    let qmode = "upload";
+    document.querySelectorAll(".tabs button").forEach((b) => {
+      b.onclick = () => {
+        document.querySelectorAll(".tabs button").forEach((x) => x.classList.remove("on"));
+        b.classList.add("on"); qmode = b.dataset.tab;
+        $("#tab-upload").classList.toggle("hidden", qmode !== "upload");
+        $("#tab-demo").classList.toggle("hidden", qmode !== "demo");
+      };
+    });
+
+    const sig = $("#sig"), sv = $("#sv");
+    const showSig = () => (sv.textContent = parseFloat(sig.value).toFixed(1));
+    sig.oninput = showSig; showSig();
+
+    $("#q-go").onclick = async () => {
+      const btn = $("#q-go"), old = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = '<span class="spin"></span> İşleniyor…';
+      try {
+        if (qmode === "upload") await runQuickUpload();
+        else await runQuickDemo();
+      } catch (e) { toast(e.message); }
+      finally { btn.disabled = false; btn.innerHTML = old; }
+    };
+
+    async function runQuickUpload() {
+      const fd = new FormData();
+      fd.append("pseudonym", $("#q-pid").value);
+      fd.append("evaluator", $("#q-ev").value);
+      fd.append("transcript", $("#q-txt").value);
+      if ($("#qf-video").files[0]) fd.append("video", $("#qf-video").files[0]);
+      const rec = quickRec.take();
+      if ($("#qf-audio").files[0]) fd.append("audio", $("#qf-audio").files[0]);
+      else if (rec) fd.append("audio", rec, "mikrofon-kaydi.webm");
+      if ($("#qf-wear").files[0]) fd.append("wearable", $("#qf-wear").files[0]);
+      const res = await fetch("/session/analyze", { method: "POST", body: fd });
+      if (res.status === 422) throw new Error("En az bir kayıt (video/ses/giyilebilir) veya transkript girin.");
+      if (!res.ok) throw new Error("Sunucu hatası: " + res.status);
+      renderReport(await res.json(), "#q-report", "#q-rep-empty", "#q-rmethod");
+    }
+
+    async function runQuickDemo() {
+      const mods = [...document.querySelectorAll("#demo-mods input:checked")].map((i) => i.value);
+      const res = await fetch("/demo/predict", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario: $("#scn").value, signal: parseFloat(sig.value),
+          seed: Math.floor(Math.random() * 1e9), modalities: mods.length ? mods : ["vision", "audio"] }),
+      });
+      if (!res.ok) throw new Error("Sunucu hatası: " + res.status);
+      const d = await res.json();
+      $("#q-rep-empty").classList.add("hidden");
+      $("#q-report").classList.remove("hidden");
+      $("#q-rmethod").textContent = "Sentetik demo · model çıktısı";
+      const sevClass = d.predicted_label === "kontrol" ? "dusuk" : "yuksek";
+      $("#q-report").innerHTML = `
         <div class="banner ${sevClass}"><span class="sev">model çıktısı</span>
-          <div class="txt"><b>${label}</b><span>güven: ${pct(Math.max(d.probabilities.kontrol, d.probabilities.depresyon))}</span></div></div>
+          <div class="txt"><b>${predText(d.predicted_label)}</b><span>güven: ${pct(topProb(d.probabilities))}</span></div></div>
         <div class="sec"><label class="lbl">Olasılık dağılımı</label>${probBars(d.probabilities)}</div>
-        <div class="sec"><label class="lbl">Modalite katkısı (dikkat ağırlığı)</label>${contrib}</div>
+        <div class="sec"><label class="lbl">Modalite katkısı (dikkat ağırlığı)</label>${contribBars(d.modality_contributions)}</div>
         <div class="sec"><label class="lbl">Modaliteler arası uyumsuzluk</label>
           <div class="bar"><div class="t"><span>uyum ⟷ uyumsuzluk</span><b>${d.incongruence.toFixed(2)}</b></div>
           <div class="track"><div class="fill" style="width:${(d.incongruence*100).toFixed(0)}%"></div></div></div></div>
         <div class="note"><b>Uyarı:</b> ${esc(d.disclaimer)}</div>`;
+    }
+
+    // ================= yönetim =================
+    async function loadUsers() {
+      try {
+        const users = await api("/auth/users");
+        $("#ulist").innerHTML = users.map((u) => `
+          <tr><td>${esc(u.username)}</td><td>${esc(u.full_name || "—")}</td>
+          <td><span class="badge role">${esc(roleLabel[u.role] || u.role)}</span></td></tr>`).join("");
+      } catch (e) { toast(e.message); }
+    }
+    $("#nu-save").onclick = async () => {
+      try {
+        await api("/auth/users", { json: {
+          username: $("#nu-user").value.trim(), full_name: $("#nu-name").value.trim(),
+          password: $("#nu-pass").value, role: $("#nu-role").value,
+        }});
+        toast("Kullanıcı oluşturuldu.");
+        ["#nu-user", "#nu-name", "#nu-pass"].forEach((s) => ($(s).value = ""));
+        loadUsers();
+      } catch (e) { toast(e.message); }
+    };
+    async function loadAudit() {
+      try {
+        const events = await api("/audit/events?limit=100");
+        $("#alist").innerHTML = events.length ? events.map((ev) => `
+          <tr><td style="white-space:nowrap">${fmtDate(ev.ts)}</td><td><b>${esc(ev.action)}</b></td>
+          <td>${esc(ev.subject)}</td><td style="color:var(--muted)">${esc(JSON.stringify(ev.detail))}</td></tr>`).join("")
+          : `<tr><td colspan="4" style="color:var(--muted)">Kayıt yok.</td></tr>`;
+      } catch (e) { toast(e.message); }
+    }
+    $("#btn-audit").onclick = loadAudit;
+
+    // ================= PWA =================
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   </script>
 </body>

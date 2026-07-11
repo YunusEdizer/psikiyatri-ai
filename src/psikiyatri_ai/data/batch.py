@@ -32,6 +32,7 @@ class SampleFeatures:
     audio_egemaps: torch.Tensor | None = None    # (88,)
     text_input_ids: torch.Tensor | None = None   # (L,)
     text_attention_mask: torch.Tensor | None = None  # (L,)
+    wearable: torch.Tensor | None = None         # (T, C) fizyolojik seri
 
 
 @dataclass
@@ -43,6 +44,7 @@ class ModalityBatch:
     audio_egemaps: torch.Tensor | None = None     # (B, 88)
     text_input_ids: torch.Tensor | None = None    # (B, L)
     text_attention_mask: torch.Tensor | None = None  # (B, L)
+    wearable: torch.Tensor | None = None          # (B, T, C)
 
     def to(self, device: torch.device | str) -> ModalityBatch:
         """Tüm mevcut tensörleri hedef cihaza taşır."""
@@ -62,6 +64,8 @@ class ModalityBatch:
             mods.append("audio")
         if self.text_input_ids is not None:
             mods.append("text")
+        if self.wearable is not None:
+            mods.append("wearable")
         return mods
 
 

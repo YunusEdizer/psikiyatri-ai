@@ -25,8 +25,9 @@ from ..data.batch import ModalityBatch
 from ..fusion.multimodal import FusionOutput, MultimodalFusion
 from ..modalities.audio.model import AudioEncoder
 from ..modalities.vision.model import VisionEncoder
+from ..modalities.wearable.model import WearableEncoder
 
-ALL_MODALITIES = ("vision", "audio", "text")
+ALL_MODALITIES = ("vision", "audio", "text", "wearable")
 
 
 class PsikiyatriModel(nn.Module):
@@ -54,6 +55,10 @@ class PsikiyatriModel(nn.Module):
                 use_egemaps=use_egemaps,
                 dropout=self.cfg.dropout,
             )
+        if "wearable" in self.enabled:
+            self.encoders["wearable"] = WearableEncoder(
+                embed_dim=self.cfg.wearable_embed_dim, dropout=self.cfg.dropout
+            )
         if "text" in self.enabled:
             # Ağır bağımlılık (transformers) yalnızca burada yüklenir.
             from ..modalities.text.model import TextEncoder
@@ -69,6 +74,8 @@ class PsikiyatriModel(nn.Module):
             emb["vision"] = self.encoders["vision"](batch.vision)
         if "audio" in self.encoders and batch.audio_mfcc is not None:
             emb["audio"] = self.encoders["audio"](batch.audio_mfcc, batch.audio_egemaps)
+        if "wearable" in self.encoders and batch.wearable is not None:
+            emb["wearable"] = self.encoders["wearable"](batch.wearable)
         if "text" in self.encoders and batch.text_input_ids is not None:
             emb["text"] = self.encoders["text"](
                 batch.text_input_ids, batch.text_attention_mask

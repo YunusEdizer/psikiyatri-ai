@@ -17,6 +17,7 @@ class Modality(StrEnum):
     VISION = "vision"
     AUDIO = "audio"
     TEXT = "text"
+    WEARABLE = "wearable"
 
 
 class DiagnosisLabel(StrEnum):
@@ -39,10 +40,17 @@ class Sample(BaseModel):
     video_path: Path | None = None
     audio_path: Path | None = None
     transcript: str | None = Field(None, description="Maskeli konuşma metni")
+    wearable_path: Path | None = Field(
+        None, description="Giyilebilir sensör kaydı (.csv/.npz)"
+    )
 
     # Önceden çıkarılmış öznitelikler (.npz). Verildiğinde ham medya yerine
     # doğrudan bu dosya okunur (hızlı yol; ağır bağımlılık gerektirmez).
     features_path: Path | None = None
+
+    # Açık rıza (KVKK) — imzalı onam formuna referans + saklama sınırı.
+    consent: bool = Field(False, description="Katılımcı açık rızası alındı mı")
+    consent_ref: str | None = Field(None, description="İmzalı onam formu referansı")
 
     label: DiagnosisLabel | None = None
 
@@ -54,6 +62,8 @@ class Sample(BaseModel):
             mods.append(Modality.AUDIO)
         if self.transcript:
             mods.append(Modality.TEXT)
+        if self.wearable_path is not None:
+            mods.append(Modality.WEARABLE)
         return mods
 
 

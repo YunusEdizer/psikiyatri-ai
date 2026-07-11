@@ -5,8 +5,11 @@ model:
   vision_embed_dim: 256
   audio_embed_dim: 256
   text_embed_dim: 768        # BERTurk gizli boyutu
+  wearable_embed_dim: 128    # giyilebilir sensör gömme boyutu
   fusion_dim: 512
-  num_classes: 2             # kontrol vs. tanı (deney tasarımına göre artırılır)
+  # 2 = ikili tarama; >2 = çok-hastalık. Eğitimde manifest etiketlerinden
+  # otomatik çıkarılır (kontrol + depresyon/anksiyete/bipolar/şizofreni).
+  num_classes: 2
   dropout: 0.3
 
 vision:
@@ -21,6 +24,11 @@ text:
   model_name: dbmdz/bert-base-turkish-cased
   max_length: 256
   freeze_backbone: true
+
+wearable:
+  sample_rate: 1.0           # sensör örnekleme frekansı (Hz)
+  # kanallar: kalp_atis_hizi, hrv, cilt_iletkenligi, hareket, titreme,
+  #           eeg_delta, eeg_theta, eeg_alpha, eeg_beta
 
 training:
   batch_size: 16

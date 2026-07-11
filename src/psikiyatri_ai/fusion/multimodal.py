@@ -21,7 +21,7 @@ from torch import nn
 from ..config import ModelSettings
 from .incongruence import pairwise_incongruence
 
-MODALITIES = ("vision", "audio", "text")
+MODALITIES = ("vision", "audio", "text", "wearable")
 
 
 @dataclass
@@ -47,6 +47,7 @@ class MultimodalFusion(nn.Module):
                 "vision": nn.Linear(cfg.vision_embed_dim, d),
                 "audio": nn.Linear(cfg.audio_embed_dim, d),
                 "text": nn.Linear(cfg.text_embed_dim, d),
+                "wearable": nn.Linear(cfg.wearable_embed_dim, d),
             }
         )
         # Modalite başına skaler dikkat skoru

@@ -15,12 +15,14 @@
 
 ## Amaç
 
-Psikiyatrik/psikolojik hastalıkların teşhisinde uzmana **karar destek** sağlayan, üç veri kaynağını (modalite) birleştiren bir yapay zeka sistemi geliştirmek:
+Psikiyatrik/psikolojik hastalıkların teşhisinde uzmana **karar destek** sağlayan, dört veri kaynağını (modalite) birleştiren bir yapay zeka sistemi geliştirmek:
 
-1. **Görüntü (Vision)** — Yüz ifadesi, göz/yüz kası hareketleri, mikro-ifadeler
+1. **Görüntü (Vision)** — Yüz işaretçileri + geometrik AU-vekili özellikler (göz açıklığı/kırpma, ağız köşesi, kaş hareketi)
 2. **Ses (Audio)** — Ses tonu, frekans, hız, tonlama (MFCC, eGeMAPS)
 3. **Metin (Text/NLP)** — Konuşma içeriğinin doğal dil işleme ile analizi (Türkçe)
-4. **Füzyon (Fusion)** — Modaliteler arası **uyum/uyumsuzluk** analizi
+4. **Giyilebilir (Wearable)** — Kalp atış hızı, cilt iletkenliği, EEG bant güçleri, hareket/titreme (Parkinson vekili)
+
+Bu modaliteler **Füzyon (Fusion)** katmanında dikkat tabanlı birleştirilir ve modaliteler arası **uyum/uyumsuzluk** analizi yapılır. Sistem hem **ikili tarama** (kontrol/depresyon) hem de **çok-hastalık** (anksiyete/bipolar/şizofreni) sınıflandırmasını destekler.
 
 > ⚠️ Bu sistem **klinik karar desteği** amaçlıdır; hekimin/uzmanın yerini almaz, teşhisi yalnızca **destekler**.
 
@@ -34,15 +36,39 @@ Mevcut çalışmalar modaliteleri senkron analiz ederken, bu proje **ses tonu �
                  ┌──────────────┐
   video/görüntü ─►  Vision      ├──┐
                  └──────────────┘  │
-                 ┌──────────────┐  │   ┌──────────┐   ┌───────────────┐
-  ses kaydı    ─►  Audio        ├──┼──►│  Fusion  ├──►│ Karar Desteği │
-                 └──────────────┘  │   └──────────┘   │  (olasılık +  │
-                 ┌──────────────┐  │                  │  açıklama)    │
-  konuşma metni─►  Text (NLP)   ├──┘                  └───────────────┘
+                 ┌──────────────┐  │
+  ses kaydı    ─►  Audio        ├──┤   ┌──────────┐   ┌───────────────┐
+                 └──────────────┘  ├──►│  Fusion  ├──►│ Karar Desteği │
+                 ┌──────────────┐  │   └──────────┘   │  (olasılık +  │
+  konuşma metni─►  Text (NLP)   ├──┤                  │  açıklama)    │
+                 └──────────────┘  │                  └───────────────┘
+                 ┌──────────────┐  │
+  sensör verisi─►  Wearable     ├──┘
                  └──────────────┘
 ```
 
 Ayrıntı: [`docs/mimari.md`](docs/mimari.md)
+
+## Klinik Yazılım Katmanı
+
+Model hattının üzerinde, psikolog/psikiyatristlerin günlük pratikte
+kullanabileceği bir **klinik karar destek yazılımı** yer alır:
+
+- **Kalıcı kayıt** — hasta, görüşme, doktor notu ve analiz sonuçları
+  ilişkisel veritabanında (varsayılan SQLite; üretimde `PAI_DATABASE_URL`
+  ile PostgreSQL).
+- **Kimlik doğrulama + roller** — JWT ile giriş; *yönetici /
+  psikiyatrist / psikolog* rol yetkileri.
+- **Klinik panel (PWA)** — hasta listesi → profil → görüşme geçmişi →
+  yeni görüşme (transkript, dosya veya **mikrofon kaydı**, belirti
+  süresi, vaka şiddeti, doktor notu) → kalıcı rapor. Mobil cihazda
+  "Ana ekrana ekle" ile uygulama gibi çalışır.
+- **Karar destek motoru** — model çıktısını yapılandırılmış klinik
+  girdilerle birleştirip açıklanabilir *tanı profili + risk düzeyi +
+  güven/belirsizlik uyarıları + öneriler* üretir (`decision/engine.py`).
+- **KVKK** — takma-kimliklendirme, metin maskeleme, ham medyanın
+  saklanmaması, denetim günlüğü ekranı, unutulma hakkı
+  (`DELETE /patients/{id}`). Ayrıntı: [`docs/kvkk-uyum-matrisi.md`](docs/kvkk-uyum-matrisi.md).
 
 ## Proje Yapısı
 
@@ -50,13 +76,15 @@ Ayrıntı: [`docs/mimari.md`](docs/mimari.md)
 psikiyatri-ai/
 ├── src/psikiyatri_ai/     # Ana Python paketi
 │   ├── config.py          # Merkezi yapılandırma (pydantic-settings)
-│   ├── data/              # Veri alma, anonimleştirme, veri modülü
-│   ├── modalities/        # vision / audio / text alt-modelleri
-│   ├── fusion/            # Multimodal füzyon modeli
-│   ├── training/          # Eğitim ve değerlendirme
-│   └── api/               # FastAPI servis katmanı
+│   ├── data/              # Veri alma, anonimleştirme, denetim günlüğü, veri modülü
+│   ├── db/                # SQLAlchemy modelleri (kullanıcı/hasta/görüşme/analiz)
+│   ├── decision/          # Kural tabanlı açıklanabilir karar destek motoru
+│   ├── modalities/        # vision / audio / text / wearable alt-modelleri
+│   ├── fusion/            # Multimodal füzyon + uyumsuzluk metriği
+│   ├── training/          # Eğitim, değerlendirme, checkpoint yan-verisi
+│   └── api/               # FastAPI servis + kimlik doğrulama + klinik panel (PWA)
 ├── config/                # YAML yapılandırmaları
-├── data/                  # Veri (git'e dahil değil)
+├── data/                  # Veri + yerel SQLite veritabanı (git'e dahil değil)
 ├── docs/                  # Proje dokümantasyonu
 ├── notebooks/             # Araştırma/deney defterleri
 ├── tests/                 # pytest testleri
@@ -78,10 +106,10 @@ copy .env.example .env
 ## Kullanım
 
 ```bash
-# API servisini + görsel demo arayüzünü başlat
+# API servisini + klinik paneli başlat
 uvicorn psikiyatri_ai.api.main:app --reload
-#   → Web arayüzü:  http://127.0.0.1:8000/
-#   → API dokümanı: http://127.0.0.1:8000/docs
+#   → Klinik panel (PWA): http://127.0.0.1:8000/
+#   → API dokümanı:       http://127.0.0.1:8000/docs
 
 # Testleri çalıştır
 pytest
@@ -90,7 +118,12 @@ pytest
 ruff check src tests
 ```
 
-Ayrıntılı test/çalıştırma adımları: [`docs/test-rehberi.md`](docs/test-rehberi.md)
+İlk açılışta veritabanı oluşturulur ve `admin` hesabı tohumlanır
+(geliştirme parolası: `degistir123`; üretimde varsayılanlar reddedilir).
+
+- Kurulum + ilk klinik akış: [`docs/hizli-baslangic.md`](docs/hizli-baslangic.md)
+- Klinisyen kullanım kılavuzu: [`docs/kullanici-kilavuzu.md`](docs/kullanici-kilavuzu.md)
+- Ayrıntılı test/çalıştırma adımları: [`docs/test-rehberi.md`](docs/test-rehberi.md)
 
 ## Sürekli Entegrasyon (CI)
 
@@ -104,7 +137,7 @@ Her `push` ve `pull_request`'te GitHub Actions ([`.github/workflows/ci.yml`](.gi
 
 ## Etik ve Veri Gizliliği
 
-Sağlık verisi işlendiği için proje **KVKK** ve uluslararası etik standartlara uyumlu tasarlanır. Tüm hasta verisi işleme öncesi **anonimleştirilir**. Ayrıntı: [`docs/veri-yonetimi-ve-etik.md`](docs/veri-yonetimi-ve-etik.md).
+Sağlık verisi işlendiği için proje **KVKK** ve uluslararası etik standartlara uyumlu tasarlanır. Tüm hasta verisi işleme öncesi **anonimleştirilir**; erişimler rol tabanlı ve denetim günlüklüdür. Ayrıntı: [`docs/veri-yonetimi-ve-etik.md`](docs/veri-yonetimi-ve-etik.md) ve [`docs/kvkk-uyum-matrisi.md`](docs/kvkk-uyum-matrisi.md).
 
 ## Yol Haritası
 

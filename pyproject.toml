@@ -31,6 +31,9 @@ dependencies = [
     "uvicorn[standard]>=0.29",
     "python-multipart>=0.0.9",
     "loguru>=0.7",
+    # Kalıcılık + kimlik doğrulama
+    "sqlalchemy>=2.0",
+    "pyjwt>=2.8",
 ]
 
 [project.optional-dependencies]
@@ -58,7 +61,7 @@ psikiyatri-train = "psikiyatri_ai.training.train:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-psikiyatri_ai = ["api/static/*.html"]
+psikiyatri_ai = ["py.typed", "api/static/*"]
 
 [tool.ruff]
 line-length = 100
@@ -71,7 +74,7 @@ select = ["E", "F", "I", "N", "UP", "B", "W"]
 [tool.ruff.lint.per-file-ignores]
 # FastAPI, bağımlılık enjeksiyonunda argüman varsayılanı olarak
 # Form()/File()/Depends() çağrısı kullanır — B008 burada kasıtlıdır.
-"src/psikiyatri_ai/api/main.py" = ["B008"]
+"src/psikiyatri_ai/api/*.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.11"

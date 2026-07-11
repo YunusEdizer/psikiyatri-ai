@@ -25,5 +25,8 @@ class DataConfig:
     text_model_name: str = DEFAULT_MODEL_NAME
     text_max_length: int = 256
 
+    # Giyilebilir sensör
+    wearable_sample_rate: float = 1.0  # örnekleme frekansı (Hz)
+
 
 __all__ = ["DataConfig"]

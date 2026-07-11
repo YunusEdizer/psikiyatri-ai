@@ -28,14 +28,14 @@ def test_model_forward_from_batch():
     assert out.attention.shape == (4, 2)
 
 
-def test_fit_runs_and_updates_weights():
+def test_fit_runs_and_updates_weights(tmp_path):
     torch.manual_seed(0)
     train_loader, val_loader = _loaders()
     model = PsikiyatriModel(enabled_modalities=("vision", "audio"))
 
     before = model.fusion.attn.weight.detach().clone()
     cfg = TrainConfig(epochs=2, modalities=("vision", "audio"))
-    fit(model, train_loader, val_loader, cfg, torch.device("cpu"))
+    fit(model, train_loader, val_loader, cfg, torch.device("cpu"), model_dir=tmp_path)
     after = model.fusion.attn.weight.detach()
 
     # Ağırlıklar güncellendiyse eğitim gerçekten çalışıyor demektir.

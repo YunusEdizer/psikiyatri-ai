@@ -119,3 +119,28 @@ def test_session_analyze_requires_input():
     with TestClient(app) as client:
         r = client.post("/session/analyze", data={"pseudonym": "x"})
         assert r.status_code == 422
+
+
+def test_session_analyze_scores_wearable_upload():
+    """Giyilebilir CSV yüklemesi gerçek füzyon modelinden geçirilmeli
+    (numpy dışında ağır bağımlılık gerektirmez)."""
+    import csv
+    import io
+
+    from psikiyatri_ai.modalities.wearable.features import WEARABLE_CHANNELS
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(WEARABLE_CHANNELS)
+    for _ in range(20):
+        w.writerow([70, 0.5, 2.0, 0.3, 0.1, 0.2, 0.2, 0.3, 0.3])
+    files = {"wearable": ("seans.csv", buf.getvalue().encode("utf-8"), "text/csv")}
+
+    with TestClient(app) as client:
+        r = client.post("/session/analyze", data={"pseudonym": "pid_w"}, files=files)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["analysis_available"] is True
+        assert "wearable" in body["scored_modalities"]
+        assert body["incongruence"] is not None
+        assert len(body["modality_contributions"]) == 1

@@ -23,6 +23,19 @@ _TC_KIMLIK_RE = re.compile(r"\b[1-9]\d{10}\b")
 _PHONE_RE = re.compile(r"\b(?:0|\+90)?\s?5\d{2}\s?\d{3}\s?\d{2}\s?\d{2}\b")
 _EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
 
+# Türkçe özel ad sezgisel maskelemesi (tam NER değil, ihtiyatlı desenler).
+# Büyük harfle başlayan bir sözcük (Türkçe karakterler dâhil).
+_NAME = r"[A-ZÇĞİÖŞÜ][a-zçğıöşü]+"
+# Unvan + ad: "Dr. Ahmet", "Prof. Ayşe Yılmaz", "Uzm. Mehmet".
+_TITLE_NAME_RE = re.compile(
+    rf"\b(Dr|Dr\.|Doç|Doç\.|Doc|Prof|Prof\.|Op|Op\.|Uz|Uzm|Uzm\.|Hemş|Psk)\.?\s+"
+    rf"(?P<ad>{_NAME}(?:\s+{_NAME})?)"
+)
+# Ad + hitap: "Ahmet Bey", "Ayşe Hanım", "Mehmet Hoca".
+_NAME_HONORIFIC_RE = re.compile(
+    rf"\b({_NAME})\s+(Bey|Bey'e|Hanım|Hanımefendi|Beyefendi|Hoca)\b"
+)
+
 
 @dataclass(frozen=True)
 class AnonymizationResult:
@@ -54,11 +67,20 @@ def mask_pii(text: str) -> str:
     """Serbest metin içindeki olası kişisel veriyi maskeler.
 
     Konuşma içeriği (NLP modalitesi) uzman notları içerebilir; model
-    eğitimine girmeden önce TC kimlik, telefon ve e-posta maskelenir.
+    eğitimine girmeden önce TC kimlik, telefon, e-posta ve (sezgisel
+    olarak) unvan/hitapla geçen özel adlar maskelenir.
+
+    Not: Ad maskelemesi ihtiyatlı desenlere dayanır (tam NER değildir);
+    unvansız/hitapsız geçen adları yakalamayabilir. Kapsamlı ad tespiti
+    ileri fazda bir Türkçe NER modeliyle güçlendirilecektir.
     """
     text = _TC_KIMLIK_RE.sub("[TCKN]", text)
     text = _PHONE_RE.sub("[TELEFON]", text)
     text = _EMAIL_RE.sub("[EPOSTA]", text)
+    # Unvan sözcüğünü koru, adı maskele: "Dr. Ahmet" -> "Dr. [AD]".
+    text = _TITLE_NAME_RE.sub(lambda m: m.group(0).replace(m.group("ad"), "[AD]"), text)
+    # "Ahmet Bey" -> "[AD] Bey".
+    text = _NAME_HONORIFIC_RE.sub(r"[AD] \2", text)
     return text
 
 

@@ -1,0 +1,15 @@
+{
+  "name": "Psikiyatri AI — Klinik Karar Destek",
+  "short_name": "PsikiyatriAI",
+  "description": "Multimodal yapay zekâ destekli psikiyatrik karar destek paneli (web + mobil PWA).",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#eef2f7",
+  "theme_color": "#0f766e",
+  "lang": "tr",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -20,6 +20,10 @@ data/raw/
 data/interim/
 data/processed/
 data/external/
+data/audit/
+*.db
+*.sqlite
+*.sqlite3
 *.csv
 *.parquet
 *.wav
@@ -27,6 +31,7 @@ data/external/
 *.mp4
 *.avi
 *.npy
+*.npz
 !**/.gitkeep
 
 # Model ağırlıkları / eserler

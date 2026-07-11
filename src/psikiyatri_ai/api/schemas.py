@@ -16,6 +16,7 @@ class PredictRequest(BaseModel):
     vision_embedding: list[float] | None = None
     audio_embedding: list[float] | None = None
     text_embedding: list[float] | None = None
+    wearable_embedding: list[float] | None = None
 
 
 class DemoRequest(BaseModel):
@@ -81,6 +82,10 @@ class SessionAnalysisResponse(BaseModel):
     risk_level: str | None = None
     matched_indicators: dict[str, list[str]] = Field(default_factory=dict)
     transcript_preview: str | None = None
+    # Ses/görüntü/giyilebilir derin öğrenme skorlaması yapıldıysa doldurulur
+    incongruence: float | None = None
+    modality_contributions: list[ModalityContribution] = Field(default_factory=list)
+    scored_modalities: list[str] = Field(default_factory=list)
     note: str | None = None
     disclaimer: str
     prototype_note: str
@@ -92,12 +97,153 @@ class HealthResponse(BaseModel):
     env: str
 
 
+# --- Kimlik doğrulama / kullanıcı yönetimi -----------------------------------
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    username: str
+    full_name: str
+    role: str
+
+
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=3, max_length=64)
+    password: str = Field(..., min_length=8)
+    full_name: str = ""
+    role: str = Field("psikolog", pattern="^(yonetici|psikiyatrist|psikolog)$")
+
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    full_name: str
+    role: str
+    is_active: bool
+
+
+# --- Hasta / görüşme yönetimi -------------------------------------------------
+
+
+class PatientCreate(BaseModel):
+    """Hasta kaydı — doğrudan tanımlayıcı istenmez.
+
+    ``identifier`` verilirse sunucuda geri döndürülemez takma-kimliğe
+    çevrilir ve **saklanmaz**; verilmezse rastgele takma-kimlik üretilir.
+    """
+
+    identifier: str | None = Field(
+        None, description="Kurum içi kimlik (saklanmaz; takma-kimliğe çevrilir)"
+    )
+    birth_year: int | None = Field(None, ge=1900, le=2026)
+    gender: str | None = None
+    cultural_context: str | None = None
+    referral_note: str | None = Field(None, description="Sevk/başvuru notu (maskelenir)")
+
+
+class PatientOut(BaseModel):
+    id: int
+    pseudonym: str
+    birth_year: int | None = None
+    gender: str | None = None
+    cultural_context: str | None = None
+    referral_note_masked: str | None = None
+    created_at: str
+    interview_count: int = 0
+    last_risk_level: str | None = None
+
+
+class InterviewSummary(BaseModel):
+    id: int
+    session_id: str
+    created_at: str
+    evaluator: str | None = None
+    severity: str | None = None
+    symptom_duration_weeks: int | None = None
+    predicted_label: str | None = None
+    risk_level: str | None = None
+    method: str | None = None
+
+
+class PatientDetail(PatientOut):
+    interviews: list[InterviewSummary] = Field(default_factory=list)
+
+
+class DoctorNoteCreate(BaseModel):
+    content: str = Field(..., min_length=1, description="Not içeriği (maskelenir)")
+
+
+class DoctorNoteOut(BaseModel):
+    id: int
+    author: str | None = None
+    content_masked: str
+    created_at: str
+
+
+# --- Karar destek profili -------------------------------------------------------
+
+
+class DiagnosisEntry(BaseModel):
+    label: str
+    label_tr: str
+    probability: float
+    support: list[str] = Field(default_factory=list)
+
+
+class DecisionRisk(BaseModel):
+    level: str
+    factors: list[str] = Field(default_factory=list)
+
+
+class DecisionConfidence(BaseModel):
+    level: str
+    warnings: list[str] = Field(default_factory=list)
+
+
+class DecisionProfile(BaseModel):
+    """Açıklanabilir karar destek profili (kural tabanlı motor çıktısı)."""
+
+    diagnosis_profile: list[DiagnosisEntry] = Field(default_factory=list)
+    risk: DecisionRisk
+    confidence: DecisionConfidence
+    clinical_findings: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+    disclaimer: str
+
+
+class InterviewReport(SessionAnalysisResponse):
+    """Kalıcı görüşme raporu: seans analizi + karar destek profili."""
+
+    interview_id: int
+    patient_id: int
+    patient_pseudonym: str
+    symptom_duration_weeks: int | None = None
+    severity: str | None = None
+    decision: DecisionProfile | None = None
+    notes: list[DoctorNoteOut] = Field(default_factory=list)
+
+
 __all__ = [
+    "DecisionConfidence",
+    "DecisionProfile",
+    "DecisionRisk",
     "DemoRequest",
+    "DiagnosisEntry",
+    "DoctorNoteCreate",
+    "DoctorNoteOut",
     "HealthResponse",
+    "InterviewReport",
+    "InterviewSummary",
     "ModalityContribution",
+    "PatientCreate",
+    "PatientDetail",
+    "PatientOut",
     "PredictRequest",
     "PredictResponse",
     "ReceivedFile",
     "SessionAnalysisResponse",
+    "TokenResponse",
+    "UserCreate",
+    "UserOut",
 ]

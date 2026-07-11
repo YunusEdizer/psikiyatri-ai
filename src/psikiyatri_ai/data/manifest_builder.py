@@ -24,12 +24,14 @@ from pathlib import Path
 
 from ..config import get_settings
 from ..logging_conf import logger
+from . import audit
 from .anonymization import mask_pii, pseudonymize
 from .schema import DiagnosisLabel, Sample
 
 _MEDIA = {
     "video_path": "video.mp4",
     "audio_path": "audio.wav",
+    "wearable_path": "wearable.csv",
 }
 
 
@@ -74,10 +76,14 @@ def build_manifest_from_raw(
             skipped += 1
             continue
 
+        pseudonym = pseudonymize(str(patient_id))
         fields: dict = {
-            "pseudonym": pseudonymize(str(patient_id)),
+            "pseudonym": pseudonym,
             "session_id": session_dir.name,
             "label": DiagnosisLabel(label),
+            # Açık rıza (KVKK) — meta.json'dan taşınır
+            "consent": bool(meta.get("consent", False)),
+            "consent_ref": meta.get("consent_ref"),
         }
 
         # Medya yolları (varsa) — veri köküne göreli kaydedilir
@@ -95,6 +101,11 @@ def build_manifest_from_raw(
             fields["transcript"] = mask_pii(transcript_file.read_text(encoding="utf-8"))
 
         lines.append(Sample(**fields).model_dump_json(exclude_none=True))
+        audit.log_event(
+            "manifest_ingest",
+            subject=pseudonym,
+            detail={"session": session_dir.name, "consent": fields["consent"]},
+        )
 
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     logger.info("Manifest yazıldı: {} ({} seans, {} atlandı)", out_path, len(lines), skipped)
