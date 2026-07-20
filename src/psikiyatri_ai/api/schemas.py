@@ -76,6 +76,18 @@ class AcousticObservation(BaseModel):
     qualitative: dict[str, str] = Field(default_factory=dict)
 
 
+class FaceObservation(BaseModel):
+    """Betimsel yüz gözlemi (tanı değil)."""
+
+    frames_analyzed: int
+    face_detected_ratio: float
+    blink: float | None = None
+    expressivity: float | None = None
+    smile: float | None = None
+    brow_lower: float | None = None
+    qualitative: dict[str, str] = Field(default_factory=dict)
+
+
 class SessionAnalysisResponse(BaseModel):
     """Klinik seans değerlendirme raporu (yükleme akışı)."""
 
@@ -100,6 +112,7 @@ class SessionAnalysisResponse(BaseModel):
     # Betimsel gözlemler (tanı füzyonundan bağımsız): kaydedilen sesten
     # yorumlanabilir akustik ölçütler; görüntü yüz analizi beklemede ise işaret.
     audio_observation: AcousticObservation | None = None
+    vision_observation: FaceObservation | None = None
     vision_pending: bool = False
     # Otomatik görüşme: ön bilgi (ÖB) bağlamı + uzman uyarısı gerektiren yanıtlar.
     preinfo: list[dict] = Field(default_factory=list)

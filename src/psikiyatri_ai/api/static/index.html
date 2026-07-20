@@ -1048,6 +1048,7 @@
       const statusPill = (mod) => {
         if (scored.has(mod)) return `<span class="pill ok">tanıya katıldı</span>`;
         if (mod === "audio" && d.audio_observation) return `<span class="pill ok">betimsel gözlem</span>`;
+        if (mod === "vision" && d.vision_observation) return `<span class="pill ok">betimsel gözlem</span>`;
         if (mod === "vision" && d.vision_pending) return `<span class="pill">kaydedildi · yüz analizi beklemede</span>`;
         return `<span class="pill">kaydedildi</span>`;
       };
@@ -1113,6 +1114,29 @@
           <div class="hint" style="margin-top:8px">Bu ölçütler kaydedilen sesten doğrudan hesaplanır ve klinisyene gözlemsel destek sunar; tanı füzyonuna katılmaz.</div></div>`;
       })() : "";
 
+      // Betimsel yüz gözlemi (tanı değil) — kaydedilen videodan blendshape ölçütleri
+      const vo = d.vision_observation;
+      const faceSec = vo ? (() => {
+        const q = vo.qualitative || {};
+        if (vo.face_detected_ratio === 0) {
+          return `<div class="sec"><label class="lbl">Yüz gözlemleri (betimsel — tanı değil)</label>
+            <div class="hint">Kaydedilen ${vo.frames_analyzed} karede yüz saptanamadı (kamera açısı/ışık). Yüz ifadesi gözlemi üretilemedi.</div></div>`;
+        }
+        const pct = (x) => x == null ? "—" : Math.round(x * 100) + "%";
+        const cell = (lbl, val, sub) => `<div style="flex:1; min-width:118px; background:var(--bg2,rgba(0,0,0,.03)); border-radius:8px; padding:10px 12px">
+          <div style="font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em">${lbl}</div>
+          <div style="font-weight:650; font-size:1.02rem">${val}</div>${sub ? `<div style="font-size:.75rem; color:var(--muted)">${sub}</div>` : ""}</div>`;
+        return `<div class="sec"><label class="lbl">Yüz gözlemleri (betimsel — tanı değil)</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            ${cell("Kamera etkileşimi", q.kamera_etkilesimi || "—", "yüz " + pct(vo.face_detected_ratio) + " karede")}
+            ${cell("İfade değişkenliği", q.ifade_degiskenligi || "—", "düşük = düz duygulanım")}
+            ${cell("Gülümseme", q.gulumseme || "—", pct(vo.smile))}
+            ${cell("Kaş çatma", q.kas_catma || "—", pct(vo.brow_lower))}
+            ${cell("Göz kırpma", pct(vo.blink), "")}
+          </div>
+          <div class="hint" style="margin-top:8px">MediaPipe yüz işaretçilerinden hesaplanır; klinisyene gözlemsel destek sunar, tanı füzyonuna katılmaz.</div></div>`;
+      })() : "";
+
       $(repSel).innerHTML = `
         <div class="repmeta">
           <div><span>Seans</span><b>${esc(d.session_id)}</b></div>
@@ -1128,6 +1152,7 @@
         ${dlSection}
         ${indicators}
         ${acousticSec}
+        ${faceSec}
         ${preinfoSec}
         ${mediaTable}
         ${d.transcript_preview ? `<div class="sec"><label class="lbl">Maskeli transkript (önizleme)</label><div class="pre">${esc(d.transcript_preview)}</div></div>` : ""}

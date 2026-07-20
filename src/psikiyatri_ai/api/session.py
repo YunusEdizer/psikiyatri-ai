@@ -201,6 +201,7 @@ def analyze_session(
         "modality_contributions": [],
         "scored_modalities": [],
         "audio_observation": None,
+        "vision_observation": None,
         "vision_pending": False,
         "disclaimer": DISCLAIMER,
         "prototype_note": PROTOTYPE_NOTE,
@@ -245,9 +246,20 @@ def analyze_session(
         except Exception:  # noqa: BLE001 - gözlem hattı tanıyı kesmemeli
             report["audio_observation"] = None
     if media_paths.get("vision"):
-        # Yüz analizi hattı ayrı (mediapipe Tasks API + etiketli video verisi
-        # gerektirir); şimdilik kayıt alınır, betimsel yüz gözlemi beklemede.
-        report["vision_pending"] = True
+        # Betimsel yüz gözlemi (tanı DEĞİL): MediaPipe FaceLandmarker
+        # blendshape'lerinden yüz saptanma oranı, göz kırpma, ifade
+        # değişkenliği, gülümseme, kaş hareketi. Tanı füzyonuna katılmaz.
+        try:
+            from ..modalities.vision.observations import (
+                describe_video,
+                observation_to_dict,
+            )
+
+            obs = observation_to_dict(describe_video(media_paths["vision"]))
+            report["vision_observation"] = obs
+            report["vision_pending"] = obs is None  # model/okuma yoksa beklemede
+        except Exception:  # noqa: BLE001 - gözlem hattı tanıyı kesmemeli
+            report["vision_pending"] = True
 
     high_risk = bool(text_risk.high_risk) if text_risk else False
 
