@@ -60,7 +60,9 @@ def test_demo_predict_returns_prediction():
         r = client.post("/demo/predict", json=payload)
         assert r.status_code == 200
         body = r.json()
-        assert body["predicted_label"] in ("kontrol", "depresyon")
+        # Tahmin, servisin yüklediği sınıf kümesinden olmalı (ikili varsayılan
+        # veya models/ altındaki eğitilmiş çok-sınıflı checkpoint).
+        assert body["predicted_label"] in body["probabilities"]
         assert abs(sum(body["probabilities"].values()) - 1.0) < 1e-4
         assert len(body["modality_contributions"]) == 2
 

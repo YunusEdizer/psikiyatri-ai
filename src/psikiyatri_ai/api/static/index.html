@@ -222,6 +222,8 @@
       <nav class="nav" id="mainnav">
         <a data-view="patients" class="on">▤&nbsp; Hastalar</a>
         <a data-view="quick">◧&nbsp; Hızlı Analiz</a>
+        <a data-view="interview">◉&nbsp; Otomatik Görüşme</a>
+        <a data-view="dataset">▦&nbsp; Veri Seti</a>
         <a data-view="admin" id="nav-admin" class="hidden">⚙&nbsp; Yönetim</a>
         <a href="/docs" target="_blank">◱&nbsp; API / Geliştirici</a>
       </nav>
@@ -476,6 +478,173 @@
           </div>
         </section>
 
+        <!-- ====== OTOMATİK GÖRÜŞME ====== -->
+        <section id="v-interview" class="hidden">
+          <div class="cols">
+            <div>
+              <!-- Adım 1: onam + başlangıç -->
+              <div class="card" id="iv-setup">
+                <div class="hd"><h2>Yönlendirmeli Otomatik Görüşme</h2><span class="sub">24 soruluk tarama protokolü</span></div>
+                <div class="bd">
+                  <div class="note">Sistem tarama sorularını sırayla ekranda gösterir ve sesli okur; danışan
+                    yanıtını sesli verir. Yanıtlar konuşma tanımayla metne dökülür (elle düzeltilebilir) ve
+                    görüşme boyunca kamera + mikrofon kaydı alınır. Görüşme bitiminde görüntü, ses ve metin
+                    birlikte analiz edilir. <b>Kalıcı kayıt tutulmaz</b>; kayıtlar analiz sonrası silinir.</div>
+                  <div class="row2 field">
+                    <div><label class="lbl">Danışan takma-kimliği</label>
+                      <input type="text" id="iv-pid" placeholder="örn. pid_00427" /></div>
+                    <div><label class="lbl">Değerlendiren</label>
+                      <input type="text" id="iv-ev" placeholder="Dr. …" /></div>
+                  </div>
+                  <div class="field">
+                    <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer">
+                      <input type="checkbox" id="iv-consent" style="margin-top:3px" />
+                      <span>Danışanın <b>açık rızası</b> alındı: görüşme boyunca kamera ve mikrofon kaydı
+                        yapılacağını, yanıtların anonimleştirilerek yalnızca karar desteği amacıyla
+                        işleneceğini ve kalıcı saklanmayacağını danışana açıkladım (KVKK).</span>
+                    </label>
+                  </div>
+                  <div class="field">
+                    <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer">
+                      <input type="checkbox" id="iv-stt" checked style="margin-top:3px" />
+                      <span>Konuşma tanıma — danışan yanıtları otomatik metne dökülsün</span>
+                    </label>
+                    <div class="hint">Tarayıcının konuşma tanıma hizmetini kullanır; bazı tarayıcılarda ses bu
+                      işlem için tarayıcı sağlayıcısının sunucularına iletilir. Hassas ortamlarda bu seçeneği
+                      kapatıp yanıtları elle yazın.</div>
+                  </div>
+                  <div class="field">
+                    <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer">
+                      <input type="checkbox" id="iv-tts" checked style="margin-top:3px" />
+                      <span>Sorular sesli okunsun (sistem sesi)</span>
+                    </label>
+                  </div>
+                  <button class="btn" id="iv-start">Görüşmeyi Başlat</button>
+                  <div class="hint" id="iv-setup-err" style="color:var(--danger)"></div>
+                </div>
+              </div>
+
+              <!-- Adım 2: görüşme -->
+              <div class="card hidden" id="iv-run">
+                <div class="hd"><h2>Görüşme Sürüyor</h2>
+                  <span class="sub"><span id="iv-prog-t"></span> · <span id="iv-timer">00:00</span></span></div>
+                <div class="bd">
+                  <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap">
+                    <div style="flex:0 0 200px; position:relative">
+                      <video id="iv-cam" autoplay muted playsinline
+                        style="width:200px; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:#111"></video>
+                      <span id="iv-recdot" class="hidden"
+                        style="position:absolute; top:8px; left:8px; background:rgba(200,30,30,.92); color:#fff; font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:20px">● KAYIT</span>
+                      <div class="hint" id="iv-camerr" style="max-width:200px"></div>
+                    </div>
+                    <div style="flex:1; min-width:260px">
+                      <div style="height:6px; background:var(--border); border-radius:4px; overflow:hidden">
+                        <div id="iv-bar" style="height:100%; width:0%; background:var(--primary); transition:width .3s"></div>
+                      </div>
+                      <div class="hint" id="iv-cat" style="margin-top:8px"></div>
+                      <div id="iv-q" style="font-size:1.12rem; font-weight:650; line-height:1.45; margin:8px 0 4px"></div>
+                      <button class="ghost no-print" id="iv-speak" style="font-size:.8rem">🔊 Soruyu tekrar oku</button>
+                      <div id="iv-warn" class="hidden" style="margin:8px 0; padding:8px 12px; border-radius:8px; background:rgba(200,60,40,.10); border:1px solid rgba(200,60,40,.35); color:var(--danger); font-size:.86rem; font-weight:600"></div>
+                      <div class="field">
+                        <label class="lbl">Yanıt seçeneği <span id="iv-sttdot" style="color:var(--primary)"></span></label>
+                        <div id="iv-opts" style="display:flex; flex-direction:column; gap:6px; margin-top:4px"></div>
+                      </div>
+                      <div class="field" id="iv-otherwrap" style="margin-top:8px">
+                        <label class="lbl" id="iv-otherlbl">Açıklama (isteğe bağlı) <span class="hint" style="font-weight:400">— sesli yanıt buraya yazılır; gerekirse düzeltin</span></label>
+                        <textarea id="iv-ans" style="min-height:80px"
+                          placeholder="Seçtiğiniz şıkka ek açıklama veya 'Diğer' yanıtı…"></textarea>
+                      </div>
+                      <div class="actions">
+                        <button class="btn" id="iv-next">Sonraki Soru →</button>
+                        <button class="ghost" id="iv-skip">Yanıtsız geç</button>
+                        <button class="ghost" id="iv-abort" style="margin-left:auto; color:var(--danger); border-color:var(--danger)">İptal</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Adım 3: gönderim durumu -->
+              <div class="card hidden" id="iv-done">
+                <div class="hd"><h2>Görüşme Tamamlandı</h2><span class="sub" id="iv-done-sub"></span></div>
+                <div class="bd">
+                  <div id="iv-done-msg" class="note"></div>
+                  <div class="actions"><button class="ghost" id="iv-again">Yeni görüşme başlat</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="hd"><h2>Değerlendirme Raporu</h2><span class="sub" id="iv-rmethod"></span></div>
+              <div class="bd">
+                <div id="iv-rep-empty" class="empty">
+                  <div class="big">◉</div>
+                  <p>Görüşme tamamlandığında görüntü + ses + metin birlikte analiz edilir;<br />rapor burada görünecek.</p>
+                </div>
+                <div id="iv-report" class="hidden"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====== VERİ SETİ ====== -->
+        <section id="v-dataset" class="hidden">
+          <div class="cols">
+            <div>
+              <div class="card">
+                <div class="hd"><h2>Araştırma Korpusu</h2><span class="sub" id="ds-src"></span></div>
+                <div class="bd">
+                  <div id="ds-missing" class="empty hidden">
+                    <div class="big">▦</div>
+                    <p>Veri seti manifesti bulunamadı.<br />
+                      <code>python scripts/ingest_nlp_dataset.py</code> ile üretin.</p>
+                  </div>
+                  <div id="ds-sum">
+                    <div class="repmeta" id="ds-meta"></div>
+                    <div class="sec" style="margin-top:8px">
+                      <label class="lbl">Tanı dağılımı</label>
+                      <div id="ds-dist"></div>
+                    </div>
+                    <div class="note" id="ds-note"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="hd"><h2>Kayıtlar</h2><span class="sub" id="ds-count"></span></div>
+                <div class="bd">
+                  <div class="row2">
+                    <div><label class="lbl">Tanı filtresi</label>
+                      <select id="ds-label"><option value="">Tümü</option></select></div>
+                    <div><label class="lbl">Transkriptte ara</label>
+                      <input type="text" id="ds-q" placeholder="örn. uyku, kaygı… (en az 2 karakter)" /></div>
+                  </div>
+                  <div class="sec">
+                    <table class="tbl">
+                      <thead><tr><th>Seans</th><th>Tanı</th><th>Önizleme</th></tr></thead>
+                      <tbody id="ds-list"><tr><td colspan="3" style="color:var(--muted)">Yükleniyor…</td></tr></tbody>
+                    </table>
+                  </div>
+                  <div class="actions no-print" style="align-items:center">
+                    <button class="ghost" id="ds-prev">← Önceki</button>
+                    <span style="font-size:.78rem;color:var(--muted)" id="ds-page"></span>
+                    <button class="ghost" id="ds-next">Sonraki →</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="hd"><h2>Kayıt Detayı</h2><span class="sub" id="ds-detail-id"></span></div>
+              <div class="bd">
+                <div id="ds-detail-empty" class="empty">
+                  <div class="big">▦</div>
+                  <p>Soldaki listeden bir kayıt seçin.<br />Maskeli transkript burada görünecek.</p>
+                </div>
+                <div id="ds-detail" class="hidden"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- ====== YÖNETİM ====== -->
         <section id="v-admin" class="hidden">
           <div class="cols">
@@ -532,13 +701,16 @@
       text: "Metin (konuşma içeriği)", wearable: "Giyilebilir (sensör)",
     };
     const clsLabel = {
-      kontrol: "Kontrol (sağlıklı)", depresyon: "Depresyon", anksiyete: "Anksiyete",
-      bipolar: "Bipolar", sizofreni: "Şizofreni", belirsiz: "Belirsiz",
+      kontrol: "Kontrol (sağlıklı)", depresyon: "Depresyon", anksiyete: "Yaygın Anksiyete",
+      sosyal_anksiyete: "Sosyal Anksiyete", panik: "Panik Bozukluk", okb: "OKB",
+      tssb: "TSSB", bipolar: "Bipolar", sizofreni: "Şizofreni", belirsiz: "Belirsiz",
     };
     const roleLabel = { yonetici: "Yönetici", psikiyatrist: "Psikiyatrist", psikolog: "Psikolog" };
     const topProb = (p) => Math.max(...Object.values(p));
     const predText = (lbl) =>
-      lbl === "kontrol" ? "Belirgin bulgu yok" : ((clsLabel[lbl] || lbl) + " bulgusu öne çıkıyor");
+      lbl === "kontrol" ? "Belirgin bulgu yok"
+      : lbl === "belirsiz" ? "Sonuç belirsiz — ek klinik değerlendirme önerilir"
+      : ((clsLabel[lbl] || lbl) + " bulgusu öne çıkıyor");
     const sevClassOf = (s) => ({ "düşük": "dusuk", "orta": "orta", "yüksek": "yuksek" }[s] || "dusuk");
 
     let toastTimer = null;
@@ -624,7 +796,7 @@
     $("#logout").onclick = logout;
 
     // ================= görünüm yönetimi =================
-    const VIEWS = { patients: "Hastalar", patient: "Hasta Profili", quick: "Hızlı Analiz", admin: "Yönetim" };
+    const VIEWS = { patients: "Hastalar", patient: "Hasta Profili", quick: "Hızlı Analiz", interview: "Otomatik Görüşme", dataset: "Veri Seti", admin: "Yönetim" };
     function setView(name) {
       for (const v of Object.keys(VIEWS)) $("#v-" + v).classList.toggle("hidden", v !== name);
       $("#viewtitle").textContent = VIEWS[name];
@@ -635,9 +807,10 @@
     document.querySelectorAll("#mainnav a[data-view]").forEach((a) => {
       a.onclick = () => {
         const v = a.dataset.view;
-        if (v !== "quick" && !S.user) { toast("Bu bölüm için giriş yapmalısınız."); return; }
+        if (v !== "quick" && v !== "interview" && !S.user) { toast("Bu bölüm için giriş yapmalısınız."); return; }
         setView(v);
         if (v === "patients") loadPatients();
+        if (v === "dataset") initDataset();
         if (v === "admin") { loadUsers(); loadAudit(); }
       };
     });
@@ -872,12 +1045,15 @@
       }
 
       const scored = new Set(d.scored_modalities || []);
+      const statusPill = (mod) => {
+        if (scored.has(mod)) return `<span class="pill ok">tanıya katıldı</span>`;
+        if (mod === "audio" && d.audio_observation) return `<span class="pill ok">betimsel gözlem</span>`;
+        if (mod === "vision" && d.vision_pending) return `<span class="pill">kaydedildi · yüz analizi beklemede</span>`;
+        return `<span class="pill">kaydedildi</span>`;
+      };
       const rows = (d.received || []).map((f) => {
-        const st = scored.has(f.modality)
-          ? `<span class="pill ok">analiz edildi</span>`
-          : `<span class="pill">alındı · tam hatta işlenecek</span>`;
         return `<tr><td>${modName[f.modality] || f.modality}</td>
-        <td>${esc(f.filename)}</td><td>${f.size_kb} KB</td><td>${st}</td></tr>`;
+        <td>${esc(f.filename)}</td><td>${f.size_kb} KB</td><td>${statusPill(f.modality)}</td></tr>`;
       }).join("");
       const textRow = d.transcript_preview != null
         ? `<tr><td>${modName.text}</td><td>transkript</td><td>${d.transcript_preview.length} krk</td>
@@ -904,6 +1080,39 @@
             <table class="tbl"><thead><tr><th>Modalite</th><th>Kaynak</th><th>Boyut</th><th>Durum</th></tr></thead>
             <tbody>${rows}${textRow}</tbody></table></div>` : "";
 
+      // Kritik yanıt bayrakları (uzman/güvenlik uyarısı gerektiren)
+      const cf = d.critical_flags || [];
+      const criticalSec = cf.length ? `<div class="sec">
+        <div style="padding:10px 14px; border-radius:10px; background:rgba(200,60,40,.10); border:1px solid rgba(200,60,40,.4)">
+          <div style="font-weight:700; color:var(--danger); margin-bottom:6px">⚠ Uzman değerlendirmesi gerektiren yanıtlar</div>
+          ${cf.map((f) => `<div style="font-size:.86rem; margin:4px 0"><b>${esc(f.question)}</b><br>
+            Yanıt: <b>${esc(f.answer)}</b> — <i>${esc(f.warn)}</i></div>`).join("")}
+          <div class="hint" style="margin-top:6px">Bu yanıtlar otomatik olarak işaretlenir; klinik güvenlik değerlendirmesi uzman tarafından yapılmalıdır.</div>
+        </div></div>` : "";
+
+      // Ön bilgi (bağlam — tanı modeline verilmez)
+      const pi = d.preinfo || [];
+      const preinfoSec = pi.length ? `<div class="sec"><label class="lbl">Ön bilgi (bağlam — tanıya katılmaz)</label>
+        <table class="tbl"><tbody>${pi.map((p) => `<tr><td style="width:60%">${esc(p.question)}</td><td><b>${esc(p.answer)}</b></td></tr>`).join("")}</tbody></table></div>` : "";
+
+      // Betimsel akustik gözlem (tanı değil) — kaydedilen sesten ham sinyal ölçütleri
+      const ao = d.audio_observation;
+      const acousticSec = ao ? (() => {
+        const q = ao.qualitative || {};
+        const cell = (lbl, val, sub) => `<div style="flex:1; min-width:120px; background:var(--bg2,rgba(0,0,0,.03)); border-radius:8px; padding:10px 12px">
+          <div style="font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em">${lbl}</div>
+          <div style="font-weight:650; font-size:1.02rem">${val}</div>${sub ? `<div style="font-size:.75rem; color:var(--muted)">${sub}</div>` : ""}</div>`;
+        return `<div class="sec"><label class="lbl">Ses gözlemleri (betimsel — tanı değil)</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            ${cell("Perde (F0)", ao.pitch_hz != null ? ao.pitch_hz + " Hz" : "—", q.perde || "")}
+            ${cell("Tonlama", q.tonlama || "—", ao.pitch_variability_hz != null ? "değişkenlik " + ao.pitch_variability_hz + " Hz" : "")}
+            ${cell("Ses şiddeti", q.ses_siddeti || "—", "RMS " + ao.loudness_rms)}
+            ${cell("Konuşma etkinliği", q.konusma_etkinligi || "—", "seslilik " + Math.round((ao.voiced_ratio||0)*100) + "%")}
+            ${cell("Süre", ao.duration_s + " sn", "")}
+          </div>
+          <div class="hint" style="margin-top:8px">Bu ölçütler kaydedilen sesten doğrudan hesaplanır ve klinisyene gözlemsel destek sunar; tanı füzyonuna katılmaz.</div></div>`;
+      })() : "";
+
       $(repSel).innerHTML = `
         <div class="repmeta">
           <div><span>Seans</span><b>${esc(d.session_id)}</b></div>
@@ -913,10 +1122,13 @@
           ${clinMeta.join("")}
         </div>
         ${banner}
+        ${criticalSec}
         ${d.analysis_available && d.probabilities ? `<div class="sec"><label class="lbl">Olasılık dağılımı</label>${probBars(d.probabilities)}</div>` : ""}
         ${decisionSection(d.decision)}
         ${dlSection}
         ${indicators}
+        ${acousticSec}
+        ${preinfoSec}
         ${mediaTable}
         ${d.transcript_preview ? `<div class="sec"><label class="lbl">Maskeli transkript (önizleme)</label><div class="pre">${esc(d.transcript_preview)}</div></div>` : ""}
         ${notesSec}
@@ -988,6 +1200,316 @@
           <div class="track"><div class="fill" style="width:${(d.incongruence*100).toFixed(0)}%"></div></div></div></div>
         <div class="note"><b>Uyarı:</b> ${esc(d.disclaimer)}</div>`;
     }
+
+    // ================= otomatik görüşme =================
+    // Akış: onam -> kamera/mikrofon -> soru döngüsü (TTS okur, STT yazar)
+    // -> bitişte video+ses+yanıtlar /interview/analyze'a gider.
+    // Sistem soruyu okurken STT duraklatılır (kendi sesini yazmasın).
+    const IV = {
+      qs: [], idx: 0, answers: [],
+      stream: null, recV: null, recA: null, chunksV: [], chunksA: [],
+      stt: null, sttOn: false, ttsOn: true, running: false,
+      t0: 0, timer: null,
+    };
+
+    const ivFmt = (s) => String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+
+    async function ivStart() {
+      const err = $("#iv-setup-err"); err.textContent = "";
+      if (!$("#iv-consent").checked) { err.textContent = "Görüşme için danışanın açık rızası (KVKK onamı) zorunludur."; return; }
+      try {
+        if (!IV.qs.length) {
+          const d = await api("/interview/questions");
+          IV.qs = d.questions;
+        }
+      } catch (e) { err.textContent = "Sorular yüklenemedi: " + e.message; return; }
+
+      IV.idx = 0; IV.answers = []; IV.chunksV = []; IV.chunksA = [];
+      IV.sttOn = $("#iv-stt").checked; IV.ttsOn = $("#iv-tts").checked;
+      IV.running = true;
+
+      // Kamera + mikrofon (yoksa yalnız yazılı yanıtla devam)
+      $("#iv-camerr").textContent = "";
+      try {
+        IV.stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480 }, audio: true,
+        });
+        $("#iv-cam").srcObject = IV.stream;
+        try {
+          IV.recV = new MediaRecorder(IV.stream, { mimeType: "video/webm" });
+          IV.recV.ondataavailable = (e) => e.data.size && IV.chunksV.push(e.data);
+          IV.recV.start(1000);
+          const at = IV.stream.getAudioTracks();
+          if (at.length) {
+            IV.recA = new MediaRecorder(new MediaStream(at), { mimeType: "audio/webm" });
+            IV.recA.ondataavailable = (e) => e.data.size && IV.chunksA.push(e.data);
+            IV.recA.start(1000);
+          }
+          $("#iv-recdot").classList.remove("hidden");
+        } catch (e) { $("#iv-camerr").textContent = "Kayıt başlatılamadı: " + e.message; }
+      } catch (e) {
+        $("#iv-camerr").textContent = "Kamera/mikrofona erişilemedi — görüşme yalnızca yazılı yanıtlarla sürecek.";
+        IV.stream = null;
+      }
+
+      // STT hazırlığı
+      ivSetupStt();
+
+      // Süre sayacı
+      IV.t0 = Date.now();
+      IV.timer = setInterval(() => { $("#iv-timer").textContent = ivFmt(Math.floor((Date.now() - IV.t0) / 1000)); }, 1000);
+
+      $("#iv-setup").classList.add("hidden");
+      $("#iv-done").classList.add("hidden");
+      $("#iv-run").classList.remove("hidden");
+      $("#iv-report").classList.add("hidden");
+      $("#iv-rep-empty").classList.remove("hidden");
+      $("#iv-rmethod").textContent = "";
+      ivShowQuestion();
+    }
+
+    function ivSetupStt() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!IV.sttOn || !SR) {
+        if (IV.sttOn && !SR) $("#iv-sttdot").textContent = "— konuşma tanıma bu tarayıcıda yok; elle yazın";
+        IV.stt = null; return;
+      }
+      const r = new SR();
+      r.lang = "tr-TR"; r.continuous = true; r.interimResults = true;
+      r.onresult = (ev) => {
+        let fin = "";
+        for (let i = ev.resultIndex; i < ev.results.length; i++)
+          if (ev.results[i].isFinal) fin += ev.results[i][0].transcript;
+        if (fin) {
+          const ta = $("#iv-ans");
+          ta.value = (ta.value ? ta.value.trimEnd() + " " : "") + fin.trim();
+        }
+        $("#iv-sttdot").textContent = "● dinliyor";
+      };
+      r.onerror = (ev) => {
+        if (ev.error === "not-allowed") $("#iv-sttdot").textContent = "— mikrofon izni yok; elle yazın";
+      };
+      r.onend = () => { if (IV.running && !IV.speaking) { try { r.start(); } catch {} } };
+      IV.stt = r;
+    }
+
+    function ivSttPause() { if (IV.stt) { try { IV.stt.stop(); } catch {} } $("#iv-sttdot").textContent = ""; }
+    function ivSttResume() {
+      if (IV.stt && IV.running) { try { IV.stt.start(); $("#iv-sttdot").textContent = "● dinliyor"; } catch {} }
+    }
+
+    function ivSpeak(text) {
+      if (!IV.ttsOn || !("speechSynthesis" in window)) { ivSttResume(); return; }
+      IV.speaking = true;
+      ivSttPause();  // sistem kendi sesini not almasın
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "tr-TR"; u.rate = 0.95;
+      const tr = speechSynthesis.getVoices().find((v) => v.lang && v.lang.startsWith("tr"));
+      if (tr) u.voice = tr;
+      u.onend = u.onerror = () => { IV.speaking = false; ivSttResume(); };
+      speechSynthesis.speak(u);
+    }
+
+    function ivShowQuestion() {
+      const q = IV.qs[IV.idx];
+      IV.selected = "";
+      const isPre = q.section === "on_bilgi";
+      $("#iv-prog-t").textContent = `Soru ${IV.idx + 1} / ${IV.qs.length}`;
+      $("#iv-bar").style.width = ((IV.idx / IV.qs.length) * 100).toFixed(1) + "%";
+      $("#iv-cat").textContent = isPre ? "Ön bilgi (bağlam)" : "Belirti kümesi: " + (q.category || "-").replace(/_/g, " ");
+      $("#iv-q").textContent = q.text;
+      $("#iv-ans").value = "";
+      // Kritik uyarı bandı
+      const w = $("#iv-warn");
+      if (q.warn) { w.textContent = "⚠ " + q.warn; w.classList.remove("hidden"); }
+      else w.classList.add("hidden");
+      // Şıklar (radio)
+      const box = $("#iv-opts");
+      box.innerHTML = (q.options || []).map((opt, i) => `
+        <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; cursor:pointer" class="iv-opt">
+          <input type="radio" name="iv-opt" value="${esc(opt)}" data-i="${i}" style="accent-color:var(--primary)">
+          <span>${esc(opt)}</span></label>`).join("");
+      box.querySelectorAll('input[name="iv-opt"]').forEach((r) => {
+        r.onchange = () => {
+          IV.selected = r.value;
+          box.querySelectorAll(".iv-opt").forEach((l) => l.style.borderColor = "var(--border)");
+          r.closest(".iv-opt").style.borderColor = "var(--primary)";
+          const other = /^Diğer/.test(r.value);
+          $("#iv-otherlbl").innerHTML = other
+            ? 'Açıklama <span class="hint" style="font-weight:400; color:var(--danger)">— "Diğer" için yanıt gerekli</span>'
+            : 'Açıklama (isteğe bağlı) <span class="hint" style="font-weight:400">— sesli yanıt buraya yazılır; gerekirse düzeltin</span>';
+        };
+      });
+      $("#iv-next").textContent = IV.idx === IV.qs.length - 1 ? "Görüşmeyi Bitir ✓" : "Sonraki Soru →";
+      ivSpeak(q.text);
+    }
+
+    function ivCommit(skip = false) {
+      const q = IV.qs[IV.idx];
+      if (skip) { IV.answers.push({ id: q.id, selected: "", other: "" }); return; }
+      IV.answers.push({ id: q.id, selected: IV.selected || "", other: $("#iv-ans").value.trim() });
+    }
+
+    async function ivAdvance(skip = false) {
+      if (!skip) {
+        const other = $("#iv-ans").value.trim();
+        if (!IV.selected && !other) { toast("Bir şık seçin veya 'Yanıtsız geç'."); return; }
+        if (/^Diğer/.test(IV.selected) && !other) { toast("'Diğer' için açıklama yazın."); return; }
+      }
+      ivCommit(skip);
+      if (IV.idx < IV.qs.length - 1) { IV.idx++; ivShowQuestion(); }
+      else await ivFinish();
+    }
+
+    function ivStopMedia() {
+      IV.running = false;
+      if ("speechSynthesis" in window) speechSynthesis.cancel();
+      ivSttPause(); IV.stt = null;
+      clearInterval(IV.timer);
+      const stops = [];
+      for (const rec of [IV.recV, IV.recA]) {
+        if (rec && rec.state !== "inactive") {
+          stops.push(new Promise((res) => { rec.onstop = res; rec.stop(); }));
+        }
+      }
+      if (IV.stream) { IV.stream.getTracks().forEach((t) => t.stop()); IV.stream = null; }
+      $("#iv-recdot").classList.add("hidden");
+      IV.recV = null; IV.recA = null;
+      return Promise.all(stops);
+    }
+
+    async function ivFinish() {
+      $("#iv-run").classList.add("hidden");
+      $("#iv-done").classList.remove("hidden");
+      const answered = IV.answers.filter((a) => (a.selected || a.other || a.answer)).length;
+      $("#iv-done-sub").textContent = `${answered}/${IV.qs.length} soru yanıtlandı`;
+      $("#iv-done-msg").innerHTML = '<span class="spin"></span> Kayıtlar kapatılıyor ve çok-modaliteli analiz çalışıyor…';
+      await ivStopMedia();
+      try {
+        const fd = new FormData();
+        fd.append("pseudonym", $("#iv-pid").value);
+        fd.append("evaluator", $("#iv-ev").value);
+        fd.append("answers", JSON.stringify(IV.answers));
+        if (IV.chunksV.length) fd.append("video", new Blob(IV.chunksV, { type: "video/webm" }), "gorusme-video.webm");
+        if (IV.chunksA.length) fd.append("audio", new Blob(IV.chunksA, { type: "audio/webm" }), "gorusme-ses.webm");
+        const res = await fetch("/interview/analyze", { method: "POST", body: fd });
+        if (!res.ok) {
+          let detail = "Sunucu hatası: " + res.status;
+          try { const j = await res.json(); if (j.detail) detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch {}
+          throw new Error(detail);
+        }
+        renderReport(await res.json(), "#iv-report", "#iv-rep-empty", "#iv-rmethod");
+        $("#iv-done-msg").innerHTML = "Analiz tamamlandı — rapor sağda. Kayıtlar analiz sonrası sunucuda silindi.";
+      } catch (e) {
+        $("#iv-done-msg").innerHTML = "Analiz başarısız: " + esc(e.message);
+      }
+    }
+
+    async function ivAbort() {
+      await ivStopMedia();
+      IV.answers = [];
+      $("#iv-run").classList.add("hidden");
+      $("#iv-setup").classList.remove("hidden");
+      toast("Görüşme iptal edildi; kayıtlar gönderilmedi.");
+    }
+
+    $("#iv-start").onclick = ivStart;
+    $("#iv-next").onclick = () => ivAdvance(false);
+    $("#iv-skip").onclick = () => ivAdvance(true);
+    $("#iv-abort").onclick = ivAbort;
+    $("#iv-speak").onclick = () => ivSpeak($("#iv-q").textContent);
+    $("#iv-again").onclick = () => { $("#iv-done").classList.add("hidden"); $("#iv-setup").classList.remove("hidden"); };
+
+    // ================= veri seti =================
+    const DS = { offset: 0, limit: 25, total: 0, initialized: false, timer: null };
+
+    async function initDataset() {
+      try {
+        const s = await api("/dataset/summary");
+        $("#ds-src").textContent = s.source || "";
+        if (!s.available) {
+          $("#ds-missing").classList.remove("hidden");
+          $("#ds-sum").classList.add("hidden");
+          $("#ds-list").innerHTML = `<tr><td colspan="3" style="color:var(--muted)">—</td></tr>`;
+          return;
+        }
+        $("#ds-missing").classList.add("hidden");
+        $("#ds-sum").classList.remove("hidden");
+        const nClasses = Object.keys(s.label_counts).length;
+        $("#ds-meta").innerHTML = `
+          <div><span>Toplam kayıt</span><b>${s.total.toLocaleString("tr-TR")}</b></div>
+          <div><span>Sınıf sayısı</span><b>${nClasses}</b></div>
+          <div><span>Modalite</span><b>Metin (NLP)</b></div>
+          <div><span>Kaynak referansı</span><b>${esc(s.consent_ref || "—")}</b></div>`;
+        const max = Math.max(...Object.values(s.label_counts));
+        $("#ds-dist").innerHTML = Object.entries(s.label_counts).map(([k, v]) => `
+          <div class="bar"><div class="t"><span>${esc(clsLabel[k] || k)}</span><b>${v.toLocaleString("tr-TR")}</b></div>
+            <div class="track"><div class="fill" style="width:${((v / max) * 100).toFixed(1)}%"></div></div></div>`).join("");
+        $("#ds-note").innerHTML = esc(s.note);
+        if (!DS.initialized) {
+          const sel = $("#ds-label");
+          Object.keys(s.label_counts).forEach((k) => {
+            const o = document.createElement("option");
+            o.value = k; o.textContent = clsLabel[k] || k;
+            sel.appendChild(o);
+          });
+          DS.initialized = true;
+        }
+        loadDatasetRecords();
+      } catch (e) { toast(e.message); }
+    }
+
+    async function loadDatasetRecords() {
+      try {
+        const p = new URLSearchParams({ offset: DS.offset, limit: DS.limit });
+        const lbl = $("#ds-label").value; if (lbl) p.set("label", lbl);
+        const q = $("#ds-q").value.trim(); if (q.length >= 2) p.set("q", q);
+        const page = await api("/dataset/records?" + p.toString());
+        DS.total = page.total;
+        $("#ds-count").textContent = page.total.toLocaleString("tr-TR") + " kayıt";
+        $("#ds-list").innerHTML = page.items.length ? page.items.map((r) => `
+          <tr class="rowlink" onclick="openDatasetRecord('${esc(r.session_id)}')">
+            <td style="white-space:nowrap"><b>${esc(r.session_id)}</b></td>
+            <td><span class="badge role">${esc(clsLabel[r.label] || r.label)}</span></td>
+            <td style="color:var(--muted)">${esc(r.transcript_preview.slice(0, 90))}…</td>
+          </tr>`).join("")
+          : `<tr><td colspan="3" style="color:var(--muted)">Eşleşen kayıt yok.</td></tr>`;
+        const from = DS.total ? DS.offset + 1 : 0;
+        const to = Math.min(DS.offset + DS.limit, DS.total);
+        $("#ds-page").textContent = `${from}–${to} / ${DS.total.toLocaleString("tr-TR")}`;
+        $("#ds-prev").disabled = DS.offset === 0;
+        $("#ds-next").disabled = to >= DS.total;
+      } catch (e) { toast(e.message); }
+    }
+
+    window.openDatasetRecord = async (sid) => {
+      try {
+        const d = await api("/dataset/records/" + encodeURIComponent(sid));
+        $("#ds-detail-empty").classList.add("hidden");
+        $("#ds-detail").classList.remove("hidden");
+        $("#ds-detail-id").textContent = d.session_id;
+        $("#ds-detail").innerHTML = `
+          <div class="repmeta">
+            <div><span>Seans</span><b>${esc(d.session_id)}</b></div>
+            <div><span>Takma-kimlik</span><b>${esc(d.pseudonym)}</b></div>
+            <div><span>Tanı etiketi</span><b>${esc(clsLabel[d.label] || d.label)}</b></div>
+            <div><span>Uzunluk</span><b>${d.transcript_chars.toLocaleString("tr-TR")} krk</b></div>
+          </div>
+          <div class="sec"><label class="lbl">Maskeli transkript (hasta-sesi anket yanıtları)</label>
+            <div class="pre" style="max-height:420px">${esc(d.transcript)}</div></div>
+          <div class="note">Kayıt takma-kimidir ve PII maskelidir; tanı adı sızıntısı
+            <b>[TANI]</b> ile temizlenmiştir. Erişim denetim günlüğüne işlenmiştir (KVKK).</div>`;
+      } catch (e) { toast(e.message); }
+    };
+
+    $("#ds-prev").onclick = () => { DS.offset = Math.max(0, DS.offset - DS.limit); loadDatasetRecords(); };
+    $("#ds-next").onclick = () => { DS.offset += DS.limit; loadDatasetRecords(); };
+    $("#ds-label").onchange = () => { DS.offset = 0; loadDatasetRecords(); };
+    $("#ds-q").addEventListener("input", () => {
+      clearTimeout(DS.timer);
+      DS.timer = setTimeout(() => { DS.offset = 0; loadDatasetRecords(); }, 350);
+    });
 
     // ================= yönetim =================
     async function loadUsers() {

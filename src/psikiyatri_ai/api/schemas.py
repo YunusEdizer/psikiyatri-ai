@@ -65,6 +65,17 @@ class ReceivedFile(BaseModel):
     size_kb: float
 
 
+class AcousticObservation(BaseModel):
+    """Betimsel akustik gözlem (tanı değil)."""
+
+    duration_s: float
+    pitch_hz: float | None = None
+    pitch_variability_hz: float | None = None
+    loudness_rms: float
+    voiced_ratio: float
+    qualitative: dict[str, str] = Field(default_factory=dict)
+
+
 class SessionAnalysisResponse(BaseModel):
     """Klinik seans değerlendirme raporu (yükleme akışı)."""
 
@@ -86,6 +97,13 @@ class SessionAnalysisResponse(BaseModel):
     incongruence: float | None = None
     modality_contributions: list[ModalityContribution] = Field(default_factory=list)
     scored_modalities: list[str] = Field(default_factory=list)
+    # Betimsel gözlemler (tanı füzyonundan bağımsız): kaydedilen sesten
+    # yorumlanabilir akustik ölçütler; görüntü yüz analizi beklemede ise işaret.
+    audio_observation: AcousticObservation | None = None
+    vision_pending: bool = False
+    # Otomatik görüşme: ön bilgi (ÖB) bağlamı + uzman uyarısı gerektiren yanıtlar.
+    preinfo: list[dict] = Field(default_factory=list)
+    critical_flags: list[dict] = Field(default_factory=list)
     note: str | None = None
     disclaimer: str
     prototype_note: str

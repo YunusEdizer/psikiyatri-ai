@@ -1,11 +1,14 @@
 /* Basit PWA service worker: uygulama kabuğunu önbelleğe alır.
-   API istekleri (auth/patients/interviews/session/demo/predict/audit)
-   her zaman ağa gider — klinik veri asla önbelleklenmez (KVKK). */
-const CACHE = "psikiyatri-ai-v1";
+   API istekleri (auth/patients/interviews/session/demo/predict/audit/
+   dataset) her zaman ağa gider — klinik veri asla önbelleklenmez (KVKK).
+   Uygulama kabuğu ("/") network-first sunulur: arayüz güncellemeleri
+   anında ulaşır, ağ yokken önbellekten (çevrimdışı) devam edilir. */
+const CACHE = "psikiyatri-ai-v2";
 const SHELL = ["/", "/icon.svg", "/manifest.webmanifest"];
 const API_PREFIXES = [
-  "/auth", "/patients", "/interviews", "/session",
-  "/demo", "/predict", "/audit", "/health", "/docs", "/openapi.json",
+  "/auth", "/patients", "/interview", "/session",
+  "/demo", "/predict", "/audit", "/dataset",
+  "/health", "/docs", "/openapi.json",
 ];
 
 self.addEventListener("install", (e) => {
@@ -26,6 +29,22 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
   if (API_PREFIXES.some((p) => url.pathname.startsWith(p))) return;
+
+  // Uygulama kabuğu: önce ağ (taze arayüz), düşerse önbellek (çevrimdışı).
+  if (url.pathname === "/" || e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Statik varlıklar: önbellek öncelikli.
   e.respondWith(
     caches.match(e.request).then((hit) => hit || fetch(e.request))
   );
