@@ -44,6 +44,10 @@ DIAGNOSIS_CLASSES: tuple[str, ...] = (
     DiagnosisLabel.KONTROL.value,
     DiagnosisLabel.DEPRESYON.value,
     DiagnosisLabel.ANKSIYETE.value,
+    DiagnosisLabel.SOSYAL_ANKSIYETE.value,
+    DiagnosisLabel.PANIK.value,
+    DiagnosisLabel.OKB.value,
+    DiagnosisLabel.TSSB.value,
     DiagnosisLabel.BIPOLAR.value,
     DiagnosisLabel.SIZOFRENI.value,
 )

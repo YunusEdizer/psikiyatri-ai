@@ -147,12 +147,25 @@ def fit(
 
 def main() -> None:
     """CLI giriş noktası."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Multimodal psikiyatri modelini eğit.")
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=None,
+        help="Eğitim manifest yolu (varsayılan: <data>/processed/manifest.jsonl)",
+    )
+    parser.add_argument("--epochs", type=int, default=None, help="Epoch sayısı")
+    parser.add_argument("--batch-size", type=int, default=None, help="Batch boyutu")
+    args = parser.parse_args()
+
     setup_logging()
     settings = get_settings()
     device = _select_device()
     logger.info("Cihaz: {} | Ortam: {}", device, settings.env)
 
-    manifest = settings.processed_data_dir / "manifest.jsonl"
+    manifest = args.manifest or (settings.processed_data_dir / "manifest.jsonl")
     if manifest.exists():
         from ..data.datamodule import infer_classes, load_manifest
 
@@ -166,6 +179,10 @@ def main() -> None:
         logger.info("Algılanan modaliteler: {} | sınıflar: {}", modalities, classes)
 
         cfg = TrainConfig(modalities=modalities, classes=classes)
+        if args.epochs is not None:
+            cfg.epochs = args.epochs
+        if args.batch_size is not None:
+            cfg.batch_size = args.batch_size
         model_cfg = settings.model.model_copy(update={"num_classes": len(classes)})
         train_loader, val_loader = build_dataloaders(
             manifest,

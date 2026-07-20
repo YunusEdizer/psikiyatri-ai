@@ -22,7 +22,7 @@ bir seansı (`Sample`) temsil eder. Manifest yolu varsayılan olarak:
 | `features_path` | string | ✖ | Önceden çıkarılmış öznitelik dosyası (`.npz`). Verilirse ham medya yerine bu okunur (hızlı yol) |
 | `consent` | bool | ✖ | Katılımcı **açık rızası** alındı mı (KVKK) — varsayılan `false` |
 | `consent_ref` | string | ✖ | İmzalı onam formu referansı |
-| `label` | string | ✔* | Etiket: `kontrol`, `depresyon`, `anksiyete`, `bipolar`, `sizofreni`, `belirsiz` |
+| `label` | string | ✔* | Etiket: `kontrol`, `depresyon`, `anksiyete` (YAB), `sosyal_anksiyete`, `panik`, `okb`, `tssb`, `bipolar`, `sizofreni`, `belirsiz` |
 
 \* Eğitim için etiket zorunludur; çıkarımda gerekmez. Manifest'te bulunan
 etiketlere göre model **ikili** (kontrol/depresyon) veya **çok-sınıflı**
@@ -89,3 +89,46 @@ psikiyatri-train        # üretilen manifest ile eğitim (modaliteler otomatik a
 ```
 
 > Üretilen sentetik veri tamamen yapaydır, hiçbir gerçek hastayı temsil etmez.
+
+### 3. Dış Excel NLP veri setinden — `scripts/ingest_nlp_dataset.py`
+
+Türkçe psikiyatrik NLP korpusunu (`psychiatric_nlp_dataset_*.xlsx`)
+anonim manifest'e çevirir. Ham Excel `data/external/` altında tutulur
+(git'e **girmez**).
+
+```bash
+# Excel'i data/external/ altına koyun, sonra:
+python scripts/ingest_nlp_dataset.py \
+    --xlsx data/external/psychiatric_nlp_dataset_20260627.xlsx
+# -> data/processed/nlp_manifest.jsonl (metin modalitesi)
+
+psikiyatri-train --manifest data/processed/nlp_manifest.jsonl
+```
+
+Aktarım ilkeleri (bkz. `psikiyatri_ai.data.nlp_dataset`):
+
+1. **Anonimlik (KVKK).** `Hasta_ID` geri döndürülemez takma-kimliğe
+   (`pseudonymize`) çevrilir; transkript PII maskelemesinden (`mask_pii`)
+   geçer.
+2. **Etiket sızıntısını önleme.** Transkript yalnızca hasta-sesi anket
+   cevaplarından (**Q1–Q24**) ve tanı adı temizlenmiş (`[TANI]`) uzun
+   anlatıdan kurulur. Doktor notu / kamera / ses analiz sütunları tanının
+   adını açıkça içerdiğinden **dışarıda bırakılır** — aksi hâlde metin
+   modeli hastalık adını ezberler.
+3. **Sadık taksonomi.** Veri setindeki 8 tanı, genişletilmiş
+   `DiagnosisLabel` taksonomisine birebir eşlenir:
+
+   | Veri seti tanısı | Etiket |
+   |------------------|--------|
+   | Majör Depresif Bozukluk | `depresyon` |
+   | Yaygın Anksiyete Bozukluğu | `anksiyete` |
+   | Sosyal Anksiyete Bozukluğu | `sosyal_anksiyete` |
+   | Panik Bozukluk | `panik` |
+   | Obsesif Kompulsif Bozukluk | `okb` |
+   | Travma Sonrası Stres Bozukluğu | `tssb` |
+   | Bipolar Bozukluk | `bipolar` |
+   | Şizofreni | `sizofreni` |
+
+> Bu korpus tümüyle **metin (NLP)** modalitesidir; ses/görüntü/giyilebilir
+> alanları boştur. Model, manifest'te bulunan etiketlere göre otomatik
+> boyutlanır (`infer_classes`).

@@ -21,11 +21,20 @@ class Modality(StrEnum):
 
 
 class DiagnosisLabel(StrEnum):
-    """Etiket taksonomisi (deney tasarımına göre genişletilir)."""
+    """Etiket taksonomisi (deney tasarımına göre genişletilir).
+
+    ``anksiyete`` yaygın anksiyete (YAB) çekirdeğini temsil eder; sosyal
+    anksiyete, panik, OKB ve TSSB ayrı sınıflar olarak tutulur (bkz.
+    ``data/nlp_dataset.py`` etiket eşlemesi ve klinik gerekçe).
+    """
 
     KONTROL = "kontrol"  # sağlıklı birey
     DEPRESYON = "depresyon"
-    ANKSIYETE = "anksiyete"
+    ANKSIYETE = "anksiyete"  # yaygın anksiyete bozukluğu (YAB)
+    SOSYAL_ANKSIYETE = "sosyal_anksiyete"
+    PANIK = "panik"  # panik bozukluk
+    OKB = "okb"  # obsesif kompulsif bozukluk
+    TSSB = "tssb"  # travma sonrası stres bozukluğu
     BIPOLAR = "bipolar"
     SIZOFRENI = "sizofreni"
     BELIRSIZ = "belirsiz"
