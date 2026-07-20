@@ -29,7 +29,7 @@ from ..db.database import get_engine, init_db
 from ..logging_conf import logger, setup_logging
 from ..training.checkpoint import labels_for_state, load_metadata
 from ..training.model import PsikiyatriModel
-from . import demo, routes_auth, routes_patients, session
+from . import demo, routes_auth, routes_dataset, routes_interview, routes_patients, session
 from .schemas import (
     DemoRequest,
     HealthResponse,
@@ -58,6 +58,8 @@ app = FastAPI(
 # Register routers BEFORE any direct routes
 app.include_router(routes_auth.router)
 app.include_router(routes_patients.router)
+app.include_router(routes_dataset.router)
+app.include_router(routes_interview.router)
 
 
 @app.on_event("startup")
@@ -66,6 +68,16 @@ async def startup_event():
     logger.info(f"App routes before startup: {len(app.routes)}")
     setup_logging()
     settings = get_settings()
+    # Tarayıcı kayıtları WebM/Opus'tur; ses çözümü için ffmpeg'i PATH'e al.
+    try:
+        from ..modalities.audio.features import ensure_ffmpeg_on_path
+
+        if ensure_ffmpeg_on_path():
+            logger.info("ffmpeg ses çözümü için hazır.")
+        else:
+            logger.warning("ffmpeg bulunamadı; WebM ses gözlemi devre dışı olabilir.")
+    except Exception as exc:  # noqa: BLE001 - ffmpeg yoksa servis yine çalışır
+        logger.warning("ffmpeg hazırlanamadı: {}", exc)
     # Veritabanı: tablolar + (boşsa) ilk yönetici hesabı
     init_db()
     with Session(get_engine()) as db:
