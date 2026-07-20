@@ -63,7 +63,10 @@ class PsikiyatriModel(nn.Module):
             # Ağır bağımlılık (transformers) yalnızca burada yüklenir.
             from ..modalities.text.model import TextEncoder
 
-            self.encoders["text"] = TextEncoder(embed_dim=self.cfg.text_embed_dim)
+            self.encoders["text"] = TextEncoder(
+                embed_dim=self.cfg.text_embed_dim,
+                unfreeze_last_layers=getattr(self.cfg, "text_unfreeze_layers", 0),
+            )
 
         self.fusion = MultimodalFusion(self.cfg)
 

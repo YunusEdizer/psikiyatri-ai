@@ -34,6 +34,10 @@ class ModelSettings(BaseSettings):
     text_embed_dim: int = 768  # BERTurk gizli boyutu
     wearable_embed_dim: int = 128  # giyilebilir sensör gömme boyutu
 
+    # Metin (BERTurk) ince ayarı: donuk gövdede son N transformer katmanını
+    # eğitime aç (0 = tam donuk; sadece proje/füzyon başları öğrenir).
+    text_unfreeze_layers: int = 0
+
     # Füzyon sonrası ortak temsil boyutu
     fusion_dim: int = 512
 

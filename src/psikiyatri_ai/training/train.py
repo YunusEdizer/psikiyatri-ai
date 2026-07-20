@@ -158,6 +158,15 @@ def main() -> None:
     )
     parser.add_argument("--epochs", type=int, default=None, help="Epoch sayısı")
     parser.add_argument("--batch-size", type=int, default=None, help="Batch boyutu")
+    parser.add_argument(
+        "--unfreeze-text-layers",
+        type=int,
+        default=None,
+        help="BERTurk son N transformer katmanını ince ayara aç (0 = tam donuk)",
+    )
+    parser.add_argument(
+        "--lr", type=float, default=None, help="Öğrenme oranı (ince ayarda düşük tutun)"
+    )
     args = parser.parse_args()
 
     setup_logging()
@@ -183,7 +192,15 @@ def main() -> None:
             cfg.epochs = args.epochs
         if args.batch_size is not None:
             cfg.batch_size = args.batch_size
-        model_cfg = settings.model.model_copy(update={"num_classes": len(classes)})
+        if args.lr is not None:
+            cfg.learning_rate = args.lr
+        model_update = {"num_classes": len(classes)}
+        if args.unfreeze_text_layers is not None:
+            model_update["text_unfreeze_layers"] = args.unfreeze_text_layers
+            logger.info(
+                "Metin ince ayarı: son {} BERTurk katmanı açık", args.unfreeze_text_layers
+            )
+        model_cfg = settings.model.model_copy(update=model_update)
         train_loader, val_loader = build_dataloaders(
             manifest,
             classes=classes,
