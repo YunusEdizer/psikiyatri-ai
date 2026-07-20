@@ -45,6 +45,11 @@ class InterviewQuestionsResponse(BaseModel):
     note: str
 
 
+class TranscriptionResponse(BaseModel):
+    text: str
+    engine: str  # "whisper-yerel" | "yok"
+
+
 @router.get("/questions", response_model=InterviewQuestionsResponse)
 def list_questions() -> InterviewQuestionsResponse:
     """Görüşme protokolündeki soruları (şıklarıyla) sıralı döndürür."""
@@ -58,6 +63,31 @@ def list_questions() -> InterviewQuestionsResponse:
             "uzmanına aittir; sistem ilaç değişikliği önermez."
         ),
     )
+
+
+@router.post("/transcribe", response_model=TranscriptionResponse)
+async def transcribe(audio: UploadFile = File(...)) -> TranscriptionResponse:
+    """Kısa bir ses klibini yerelde (sunucuda) Türkçe metne çevirir.
+
+    Tarayıcının bulut STT hizmeti yerine faster-whisper kullanılır; ham ses
+    üçüncü tarafa gitmez (KVKK). faster-whisper kurulu değilse boş metin +
+    ``engine="yok"`` döner; istemci tarayıcı STT'sine geri düşebilir. Ses
+    geçici dosyaya yazılır ve işlem sonrası silinir.
+    """
+    from ..modalities.audio.transcribe import is_available, transcribe_audio
+
+    if not is_available():
+        return TranscriptionResponse(text="", engine="yok")
+
+    received, media_paths, tmp_files = await collect_uploads(None, audio, None)
+    try:
+        path = media_paths.get("audio")
+        if path is None:
+            raise HTTPException(status_code=422, detail="Ses dosyası gerekli.")
+        text = transcribe_audio(path) or ""
+        return TranscriptionResponse(text=text, engine="whisper-yerel")
+    finally:
+        cleanup(tmp_files)
 
 
 @router.post("/analyze", response_model=SessionAnalysisResponse)

@@ -506,12 +506,13 @@
                   </div>
                   <div class="field">
                     <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer">
-                      <input type="checkbox" id="iv-stt" checked style="margin-top:3px" />
-                      <span>Konuşma tanıma — danışan yanıtları otomatik metne dökülsün</span>
+                      <input type="checkbox" id="iv-stt" style="margin-top:3px" />
+                      <span>Tarayıcı konuşma tanıması — yanıtları canlı metne dök (sürekli)</span>
                     </label>
-                    <div class="hint">Tarayıcının konuşma tanıma hizmetini kullanır; bazı tarayıcılarda ses bu
-                      işlem için tarayıcı sağlayıcısının sunucularına iletilir. Hassas ortamlarda bu seçeneği
-                      kapatıp yanıtları elle yazın.</div>
+                    <div class="hint">Görüşme boyunca <b>çoktan seçmeli şıklar</b> birincil yanıttır; açıklama için
+                      her soruda <b>“🎤 Konuşarak yanıtla”</b> düğmesi sesi <b>yerelde (sunucuda, KVKK-temiz)</b>
+                      Whisper ile yazıya döker. Bu seçenek ise tarayıcının canlı konuşma tanımasını açar; ses tarayıcı
+                      sağlayıcısına iletilebileceğinden hassas ortamlarda kapalı tutun.</div>
                   </div>
                   <div class="field">
                     <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer">
@@ -551,6 +552,10 @@
                       </div>
                       <div class="field" id="iv-otherwrap" style="margin-top:8px">
                         <label class="lbl" id="iv-otherlbl">Açıklama (isteğe bağlı) <span class="hint" style="font-weight:400">— sesli yanıt buraya yazılır; gerekirse düzeltin</span></label>
+                        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px">
+                          <button class="ghost no-print" id="iv-rec-ans" style="font-size:.82rem">🎤 Konuşarak yanıtla</button>
+                          <span class="hint" id="iv-rec-state"></span>
+                        </div>
                         <textarea id="iv-ans" style="min-height:80px"
                           placeholder="Seçtiğiniz şıkka ek açıklama veya 'Diğer' yanıtı…"></textarea>
                       </div>
@@ -1345,6 +1350,7 @@
       $("#iv-cat").textContent = isPre ? "Ön bilgi (bağlam)" : "Belirti kümesi: " + (q.category || "-").replace(/_/g, " ");
       $("#iv-q").textContent = q.text;
       $("#iv-ans").value = "";
+      if ($("#iv-rec-state")) $("#iv-rec-state").textContent = "";
       // Kritik uyarı bandı
       const w = $("#iv-warn");
       if (q.warn) { w.textContent = "⚠ " + q.warn; w.classList.remove("hidden"); }
@@ -1438,6 +1444,46 @@
       $("#iv-setup").classList.remove("hidden");
       toast("Görüşme iptal edildi; kayıtlar gönderilmedi.");
     }
+
+    // Sunucu-taraflı (yerel Whisper) bas-konuş transkripsiyon — KVKK-temiz.
+    IV.recAns = null; IV.recAnsChunks = []; IV.recAnsOn = false;
+    async function ivRecordAnswer() {
+      const btn = $("#iv-rec-ans"), st = $("#iv-rec-state");
+      if (IV.recAnsOn) {  // durdur → gönder
+        IV.recAnsOn = false;
+        if (IV.recAns && IV.recAns.state !== "inactive") {
+          await new Promise((res) => { IV.recAns.onstop = res; IV.recAns.stop(); });
+        }
+        btn.textContent = "🎤 Konuşarak yanıtla"; btn.disabled = true;
+        st.innerHTML = '<span class="spin"></span> yerelde yazıya dökülüyor…';
+        try {
+          const blob = new Blob(IV.recAnsChunks, { type: "audio/webm" });
+          const fd = new FormData(); fd.append("audio", blob, "yanit.webm");
+          const r = await fetch("/interview/transcribe", { method: "POST", body: fd });
+          const j = await r.json();
+          if (j.engine === "yok") { st.textContent = "— yerel STT kurulu değil; elle yazın"; }
+          else {
+            const ta = $("#iv-ans");
+            ta.value = (ta.value ? ta.value.trimEnd() + " " : "") + (j.text || "").trim();
+            st.textContent = j.text ? "✓ yazıldı (yerel Whisper)" : "— ses anlaşılamadı";
+          }
+        } catch (e) { st.textContent = "— transkripsiyon hatası: " + e.message; }
+        finally { btn.disabled = false; }
+        return;
+      }
+      // başlat
+      if (!IV.stream) { st.textContent = "— mikrofon yok"; return; }
+      const at = IV.stream.getAudioTracks();
+      if (!at.length) { st.textContent = "— mikrofon yok"; return; }
+      IV.recAnsChunks = [];
+      IV.recAns = new MediaRecorder(new MediaStream(at), { mimeType: "audio/webm" });
+      IV.recAns.ondataavailable = (e) => e.data.size && IV.recAnsChunks.push(e.data);
+      IV.recAns.start();
+      IV.recAnsOn = true;
+      btn.textContent = "⏹ Bitir ve yaz";
+      st.innerHTML = '<span style="color:var(--danger)">● kaydediyor</span> — bitince tıklayın';
+    }
+    $("#iv-rec-ans").onclick = ivRecordAnswer;
 
     $("#iv-start").onclick = ivStart;
     $("#iv-next").onclick = () => ivAdvance(false);

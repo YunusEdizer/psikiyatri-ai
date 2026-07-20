@@ -41,6 +41,8 @@ dependencies = [
 # Modaliteye özel ağır bağımlılıklar — ihtiyaç halinde kurulur
 vision = ["opencv-python>=4.9", "mediapipe>=0.10", "torchvision>=0.17"]
 audio = ["librosa>=0.10", "soundfile>=0.12", "torchaudio>=2.2", "opensmile>=2.5"]
+# Sunucu-taraflı (yerel) konuşma tanıma — KVKK-temiz görüşme transkripsiyonu.
+stt = ["faster-whisper>=1.0", "imageio-ffmpeg>=0.4"]
 text = ["transformers>=4.40", "sentencepiece>=0.2", "tokenizers>=0.19"]
 dev = [
     "pytest>=8.0",
