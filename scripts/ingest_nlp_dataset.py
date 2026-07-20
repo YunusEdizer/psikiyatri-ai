@@ -44,12 +44,29 @@ def main() -> None:
     parser.add_argument(
         "--limit", type=int, default=None, help="En fazla N örnek yaz (deneme için)"
     )
+    parser.add_argument(
+        "--control",
+        type=int,
+        default=0,
+        help="Manifest'e N sentetik kontrol (sağlıklı) örneği ekle (0 = ekleme)",
+    )
     args = parser.parse_args()
 
     setup_logging()
     out_path, stats = build_manifest_from_nlp_dataset(
         args.xlsx, out_path=args.out, limit=args.limit
     )
+
+    if args.control > 0:
+        from psikiyatri_ai.data.control_data import iter_control_samples
+
+        with out_path.open("a", encoding="utf-8") as fh:
+            for sample in iter_control_samples(args.control):
+                fh.write(sample.model_dump_json(exclude_none=True))
+                fh.write("\n")
+                stats.label_counts["kontrol"] += 1
+                stats.written += 1
+        print(f"\n+ {args.control} sentetik kontrol örneği eklendi.")
 
     print(f"\nManifest: {out_path}")
     print(f"Yazılan örnek : {stats.written}")
