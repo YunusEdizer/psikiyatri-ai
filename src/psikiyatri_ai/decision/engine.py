@@ -35,9 +35,14 @@ _RISK_ORDER = ["düşük", "orta", "yüksek"]
 _LABEL_TR = {
     "kontrol": "Kontrol (belirgin bulgu yok)",
     "depresyon": "Depresyon",
-    "anksiyete": "Anksiyete",
+    "anksiyete": "Yaygın anksiyete bozukluğu",
+    "sosyal_anksiyete": "Sosyal anksiyete bozukluğu",
+    "panik": "Panik bozukluk",
+    "okb": "Obsesif kompulsif bozukluk",
+    "tssb": "Travma sonrası stres bozukluğu",
     "bipolar": "Bipolar bozukluk",
     "sizofreni": "Şizofreni",
+    "belirsiz": "Belirsiz",
 }
 
 
@@ -93,6 +98,12 @@ def generate_decision(
     if not trained:
         warnings.append(
             "Eğitilmiş model ağırlığı yok — skorlar demo amaçlıdır, klinik değeri sınırlıdır."
+        )
+    if probabilities and "kontrol" not in probabilities:
+        warnings.append(
+            "Model kontrol (sağlıklı) sınıfı içermiyor — 'belirgin bulgu yok' "
+            "sonucu model tarafından üretilemez; sağlıklı birey olasılığı "
+            "klinik değerlendirmeyle ayrıca dışlanmalıdır."
         )
     if probabilities and len(probabilities) >= 2:
         top2 = sorted(probabilities.values(), reverse=True)[:2]

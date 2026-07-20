@@ -23,11 +23,23 @@ DISCLAIMER = (
     "Nihai karar yetkili sağlık uzmanına aittir."
 )
 PROTOTYPE_NOTE = (
-    "Prototip (TRL6): eğitilmiş model yoksa çıktı rastgele-başlatılmış ağla "
-    "üretilir. Ses/görüntü/giyilebilir skorlaması ilgili modalite ekstraları "
-    "(vision/audio) kurulu olduğunda etkinleşir; aksi hâlde metin ön analizi "
-    "kullanılır."
+    "Prototip (TRL6): Tanı, eğitilmiş metin modeliyle üretilir. Ses ve görüntü "
+    "kodlayıcıları henüz etiketli medya ile eğitilmediğinden tanı füzyonuna "
+    "KATILMAZ (rastgele kodlayıcı tanıyı bozacağından); kaydedilen ses "
+    "betimsel akustik gözlem olarak sunulur, yüz analizi hattı geliştirme "
+    "aşamasındadır. Çok-modaliteli tanı ve uyumsuzluk analizi, etiketli "
+    "ses/görüntü verisi toplandığında etkinleşecektir."
 )
+
+
+# Çekimserlik eşikleri (kontrol sınıfı olmayan model için):
+# - _ABSTAIN_TOP1: en yüksek olasılık bunun altındaysa her koşulda "belirsiz"
+#   (8 sınıfta şans taban çizgisi 0.125; 0.35 ≈ şansın ~3 katı güven ister).
+# - _ABSTAIN_NO_INDICATOR: sözlük-tabanlı ön analiz transkriptte HİÇBİR
+#   belirti ifadesi bulamamışsa modelden daha yüksek güven istenir; iki
+#   bağımsız kanıt hattı da zayıfken tanı öne sürmek yanıltıcı olur.
+_ABSTAIN_TOP1 = 0.35
+_ABSTAIN_NO_INDICATOR = 0.60
 
 
 def _risk_level(prob: float, high_risk: bool) -> str:
@@ -38,24 +50,64 @@ def _risk_level(prob: float, high_risk: bool) -> str:
     return "düşük"
 
 
-def score_media(media_paths: dict[str, Path]) -> dict | None:
-    """Ses/görüntü/giyilebilir kayıtları gerçek füzyon modelinden geçirir.
+# Yüklü çıkarım modeli önbelleği: (modaliteler, egemaps, ckpt mtime) -> model.
+# Metin kodlayıcı (BERTurk) ve checkpoint yüklemesi pahalıdır; aynı modalite
+# kümesiyle gelen ardışık isteklerde yeniden kurulmasın.
+_model_cache: dict[tuple, tuple] = {}
 
-    İlgili modalite bağımlılığı yoksa (ör. mediapipe/librosa kurulu değil)
-    ya da çıkarım başarısızsa ``None`` döner (çağıran metin analizine düşer).
-    """
+
+def _get_inference_model(scored: tuple[str, ...], use_egemaps: bool):
+    """Eğitilmiş füzyon modelini (varsa) önbellekten kurar/döndürür."""
     import torch
 
     from ..config import get_settings
+    from ..training.checkpoint import labels_for_state, load_metadata
+    from ..training.model import PsikiyatriModel
+
+    settings = get_settings()
+    ckpt = settings.model_dir / "psikiyatri_model.pt"
+    mtime = ckpt.stat().st_mtime if ckpt.exists() else None
+    key = (scored, use_egemaps, mtime)
+    if key in _model_cache:
+        return _model_cache[key]
+
+    state = torch.load(ckpt, map_location="cpu") if ckpt.exists() else None
+    meta = load_metadata(settings.model_dir)
+    if meta:
+        classes = list(meta["classes"])
+    elif state is not None:
+        classes = labels_for_state(state, ["kontrol", "depresyon"])
+    else:
+        classes = ["kontrol", "depresyon"]
+    model_cfg = settings.model.model_copy(update={"num_classes": len(classes)})
+    model = PsikiyatriModel(model_cfg, enabled_modalities=scored, use_egemaps=use_egemaps)
+    trained = state is not None
+    if state is not None:
+        model.load_state_dict(state, strict=False)
+    model.eval()
+
+    _model_cache.clear()  # tek giriş yeterli; eski checkpoint'i bellekte tutma
+    _model_cache[key] = (model, classes, trained)
+    return model, classes, trained
+
+
+def score_media(media_paths: dict[str, Path], transcript: str | None = None) -> dict | None:
+    """Kayıtları (ve varsa transkripti) gerçek füzyon modelinden geçirir.
+
+    Metin, ``transformers`` kuruluysa BERTurk kodlayıcısıyla skorlanır;
+    ilgili modalite bağımlılığı yoksa (ör. mediapipe/librosa kurulu değil)
+    o modalite atlanır. Hiçbir modalite skorlanamazsa ``None`` döner
+    (çağıran sözlük-tabanlı metin analizine düşer).
+    """
     from ..data.batch import SampleFeatures
     from ..data.datamodule import FeatureExtractor, collate_features
     from ..data.schema import Sample
     from ..logging_conf import logger
-    from ..training.checkpoint import labels_for_state, load_metadata
-    from ..training.model import PsikiyatriModel
 
-    # Sadece derin öğrenme kodlayıcısı olan modaliteler (metin ayrı işlenir).
     candidates = [m for m in ("vision", "audio", "wearable") if media_paths.get(m)]
+    has_text = bool(transcript and transcript.strip())
+    if has_text:
+        candidates.append("text")
     if not candidates:
         return None
 
@@ -65,6 +117,7 @@ def score_media(media_paths: dict[str, Path]) -> dict | None:
         video_path=media_paths.get("vision"),
         audio_path=media_paths.get("audio"),
         wearable_path=media_paths.get("wearable"),
+        transcript=transcript if has_text else None,
     )
 
     feats: dict = {}
@@ -82,26 +135,11 @@ def score_media(media_paths: dict[str, Path]) -> dict | None:
     if not scored:
         return None
 
-    settings = get_settings()
-    ckpt = settings.model_dir / "psikiyatri_model.pt"
-    state = torch.load(ckpt, map_location="cpu") if ckpt.exists() else None
-    meta = load_metadata(settings.model_dir)
-    if meta:
-        classes = list(meta["classes"])
-    elif state is not None:
-        classes = labels_for_state(state, ["kontrol", "depresyon"])
-    else:
-        classes = ["kontrol", "depresyon"]
-    model_cfg = settings.model.model_copy(update={"num_classes": len(classes)})
-    model = PsikiyatriModel(
-        model_cfg,
-        enabled_modalities=tuple(scored),
-        use_egemaps="audio_egemaps" in feats,
+    import torch
+
+    model, classes, trained = _get_inference_model(
+        tuple(scored), "audio_egemaps" in feats
     )
-    trained = state is not None
-    if state is not None:
-        model.load_state_dict(state, strict=False)
-    model.eval()
 
     batch, _ = collate_features([SampleFeatures(label=0, **feats)])
     with torch.no_grad():
@@ -162,39 +200,89 @@ def analyze_session(
         "incongruence": None,
         "modality_contributions": [],
         "scored_modalities": [],
+        "audio_observation": None,
+        "vision_pending": False,
         "disclaimer": DISCLAIMER,
         "prototype_note": PROTOTYPE_NOTE,
     }
 
-    # 1) Metin ön analizi (sözlük tabanlı) — her zaman denenir.
+    # 1) Metin ön analizi (sözlük tabanlı) — her zaman denenir; risk
+    #    göstergeleri (kendine zarar vb.) derin skorlamadan bağımsız işler.
     text_risk = None
+    masked = None
     if has_transcript:
         masked = mask_pii(normalize_text(transcript_text))
         text_risk = analyze_text_risk(masked)
         report["transcript_preview"] = masked[:500]
         report["matched_indicators"] = text_risk.matched
 
-    # 2) Ses/görüntü/giyilebilir derin öğrenme skorlaması (bağımlılık varsa).
+    # 2) Derin öğrenme skorlaması. ÖNEMLİ: ses/görüntü kodlayıcıları henüz
+    #    etiketli medya ile EĞİTİLMEDİĞİNDEN (korpus metin-only) tanı füzyonuna
+    #    yalnızca eğitilmiş modaliteler (metin; + varsa giyilebilir) verilir.
+    #    Ampirik olarak doğrulandı: rastgele-başlatılmış ses kodlayıcısı metin
+    #    tanısını bozuyor (ör. depresyon 0.78 → 0.43). Ses/görüntü aşağıda
+    #    (adım 3) BETİMSEL gözlem olarak işlenir; tanıya karıştırılmaz.
+    diagnostic_paths = {k: v for k, v in media_paths.items() if k == "wearable"}
     media_result = None
-    if media_paths:
+    if diagnostic_paths or has_transcript:
         try:
-            media_result = score_media(media_paths)
+            media_result = score_media(diagnostic_paths, transcript=masked)
         except Exception:  # noqa: BLE001 - skorlama isteği asla kesmemeli
             media_result = None
+
+    # 3) Betimsel akustik gözlem (tanı DEĞİL): kaydedilen sesten perde,
+    #    enerji ve seslilik gibi doğrudan yorumlanabilir sinyaller.
+    if media_paths.get("audio"):
+        try:
+            from ..modalities.audio.observations import (
+                describe_audio,
+                observation_to_dict,
+            )
+
+            report["audio_observation"] = observation_to_dict(
+                describe_audio(media_paths["audio"])
+            )
+        except Exception:  # noqa: BLE001 - gözlem hattı tanıyı kesmemeli
+            report["audio_observation"] = None
+    if media_paths.get("vision"):
+        # Yüz analizi hattı ayrı (mediapipe Tasks API + etiketli video verisi
+        # gerektirir); şimdilik kayıt alınır, betimsel yüz gözlemi beklemede.
+        report["vision_pending"] = True
 
     high_risk = bool(text_risk.high_risk) if text_risk else False
 
     if media_result is not None:
         probs = media_result["probabilities"]
-        finding_prob = 1.0 - probs.get("kontrol", 0.0)
+        predicted = media_result["predicted_label"]
+        top1 = float(max(probs.values()))
+        # 'kontrol' sınıfı olmayan modelde (yalnız tanı sınıfları) bulgu
+        # olasılığı en güçlü tanının olasılığıyla temsil edilir.
+        if "kontrol" in probs:
+            finding_prob = 1.0 - probs.get("kontrol", 0.0)
+        else:
+            finding_prob = top1
+            # Çekimserlik (abstention): model "sağlıklı" diyemediğinden,
+            # düşük güvenli bir tahmini tanı gibi sunmak yanıltıcı olur.
+            # Sözlük analizi de belirti bulamamışsa (bağımsız ikinci kanıt
+            # hattı boş) daha yüksek güven aranır. "Belirsiz" durumda dağılım
+            # yine gösterilir; nihai karar uzmana aittir.
+            no_text_evidence = (
+                text_risk is not None
+                and "text" in media_result["scored_modalities"]
+                and not text_risk.matched
+            )
+            if top1 < _ABSTAIN_TOP1 or (no_text_evidence and top1 < _ABSTAIN_NO_INDICATOR):
+                predicted = "belirsiz"
         method = "Derin öğrenme füzyonu (" + " + ".join(media_result["scored_modalities"]) + ")"
         if not media_result["trained"]:
             method += " — eğitilmemiş model (demo)"
+        elif predicted == "belirsiz":
+            method += " — düşük güven, sonuç belirsiz"
         report.update(
             analysis_available=True,
             method=method,
             probabilities={k: round(v, 4) for k, v in probs.items()},
-            predicted_label=media_result["predicted_label"],
+            predicted_label=predicted,
             incongruence=round(media_result["incongruence"], 4),
             modality_contributions=media_result["modality_contributions"],
             scored_modalities=media_result["scored_modalities"],

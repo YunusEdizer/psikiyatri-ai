@@ -56,6 +56,37 @@ Hasta profilinde **+ Yeni Görüşme**:
 > Ham video/ses dosyaları analizden hemen sonra **silinir**; sadece
 > analiz sonuçları ve maskeli metinler saklanır.
 
+### 3.1 Otomatik Görüşme (yönlendirmeli tarama)
+
+Kenar çubuğundaki **◉ Otomatik Görüşme**, 24 soruluk yarı yapılandırılmış
+tarama protokolünü danışana bilgisayar başında otomatik uygular. Sorular
+NLP korpusundaki `Q1–Q24` anket şemasıyla bire bir hizalıdır ve DSM-5 ana
+belirti kümelerini tarar (duygudurum, kaygı, OKB, travma, mani, psikotik
+belirtiler, dürtü/öfke; Q6 kendine-zarar risk taramasıdır).
+
+Akış:
+
+1. **KVKK onamı** (zorunlu): kamera+mikrofon kaydı ve işleme amacı
+   danışana açıklanır, onay kutusu işaretlenir.
+2. **Görüşme başlar**: kamera canlı önizlemede, video+ses kayıtta.
+   Sistem her soruyu ekranda gösterir ve **sesli okur** (kapatılabilir).
+3. **Danışan sesli yanıtlar**: konuşma tanıma yanıtı otomatik metne döker;
+   metin elle düzeltilebilir. Sistem soruyu okurken tanıma duraklatılır
+   (kendi sesini not almaz). Soru **Yanıtsız geç** ile atlanabilir.
+4. **Bitişte** yanıtlar sunucuda `Görüşmeci:/Danışan:` transkriptine
+   çevrilir; video + ses + metin birlikte füzyon analizinden geçer ve
+   karar destek raporu sağ panelde görünür.
+
+Notlar:
+
+- Kamera/mikrofon erişimi yoksa görüşme **yalnızca yazılı yanıtlarla**
+  sürer (özellik kaybıyla, kesintisiz).
+- Konuşma tanıma tarayıcı hizmetini kullanır; bazı tarayıcılarda ses bu
+  işlem için tarayıcı sağlayıcısının sunucusuna iletilir. Hassas
+  ortamlarda bu seçeneği kapatıp yanıtları elle yazın.
+- Kayıtlar analiz sonrası **silinir**; bu akışta kalıcı kayıt tutulmaz
+  (kalıcı kayıt için hasta profilinden *Yeni Görüşme* kullanın).
+
 ## 4. Raporu Okuma
 
 | Bölüm | Anlamı |
@@ -67,6 +98,8 @@ Hasta profilinde **+ Yeni Görüşme**:
 | **Modalite katkısı** | Modelin karara hangi kaynaktan (ses/yüz/metin/sensör) ne oranda beslendiği. |
 | **Uyumsuzluk skoru** | Yüksek değer, söylenen içerik ile ses tonu/yüz ifadesi arasında çelişkiye işaret eder (bastırılmış duygulanım olasılığı) — görüşmede derinleştirin. |
 | **Saptanan belirti ifadeleri** | Transkriptte eşleşen ifadeler — şeffaflık için gösterilir. |
+| **"Sonuç belirsiz"** | Model güveni düşükse **veya** model güveni orta düzeydeyken sözlük analizi hiçbir belirti bulamamışsa sistem tanı öne sürmekten çekimser kalır. Mevcut model kontrol (sağlıklı) sınıfı içermediğinden "bulgu yok" kararını üretemez; bu durumda değerlendirme tümüyle klinisyene aittir. |
+| **Ses gözlemleri (betimsel)** | Kaydedilen sesten doğrudan hesaplanan yorumlanabilir ölçütler: perde (F0), tonlama (monoton/dalgalı), ses şiddeti, konuşma etkinliği ve süre. Bunlar klinisyene **gözlemsel** destektir; tanı üretmez ve tanı füzyonuna katılmaz. Sebep: ses/görüntü kodlayıcıları henüz etiketli medya ile eğitilmediğinden — ampirik olarak eğitilmemiş ses kodlayıcısının metin tanısını bozduğu görülmüştür (ör. depresyon %78 → %43) — bu modaliteler tanıya karıştırılmaz. |
 
 **🖨 Raporu yazdır** ile rapor yazdırılabilir/PDF alınabilir.
 
@@ -77,7 +110,23 @@ Hasta profilinde **+ Yeni Görüşme**:
 - Rapora sonradan not eklemek için API `POST /interviews/{id}/notes`
   kullanılabilir (panel sürümünde not alanı görüşme formundadır).
 
-## 6. Yönetici İşlevleri
+## 6. Veri Seti (Araştırma Korpusu)
+
+**Veri Seti** sekmesi, modelin eğitiminde kullanılan anonimleştirilmiş
+Türkçe NLP korpusunu (10.000 kayıt, 8 tanı sınıfı) inceleme imkânı verir
+(giriş gerektirir):
+
+- **Özet kartı** — toplam kayıt, sınıf sayısı ve tanı dağılımı çubukları.
+- **Kayıt listesi** — tanı filtresi ve transkript içi arama ile sayfalı
+  gezinme.
+- **Kayıt detayı** — seçilen kaydın takma-kimliği ve tam (maskeli)
+  transkripti. Tanı adı sızıntıları `[TANI]` olarak temizlenmiştir;
+  her detay erişimi denetim günlüğüne işlenir (KVKK).
+
+Korpus görünmüyorsa manifest üretilmemiş demektir:
+`python scripts/ingest_nlp_dataset.py` (bkz. `docs/veri-formati.md`).
+
+## 7. Yönetici İşlevleri
 
 **Yönetim** sekmesi (yalnızca yönetici):
 
@@ -88,7 +137,7 @@ Hasta profilinde **+ Yeni Görüşme**:
   hastayı ve tüm bağlı kayıtları **geri alınamaz** biçimde siler
   (unutulma hakkı).
 
-## 7. Sorun Bildirimi
+## 8. Sorun Bildirimi
 
 Pilot sürecinde hata/öneri bildirimleri için proje ekibine e-posta ile
 ulaşın veya kurumun belirlediği destek kanalını kullanın. Bildirimde

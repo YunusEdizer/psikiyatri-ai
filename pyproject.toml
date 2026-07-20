@@ -19,6 +19,7 @@ dependencies = [
     # Çekirdek sayısal / veri
     "numpy>=1.26",
     "pandas>=2.1",
+    "openpyxl>=3.1",  # Excel (NLP veri seti) aktarımı
     "scikit-learn>=1.4",
     # Derin öğrenme
     "torch>=2.2",
@@ -75,6 +76,8 @@ select = ["E", "F", "I", "N", "UP", "B", "W"]
 # FastAPI, bağımlılık enjeksiyonunda argüman varsayılanı olarak
 # Form()/File()/Depends() çağrısı kullanır — B008 burada kasıtlıdır.
 "src/psikiyatri_ai/api/*.py" = ["B008"]
+# Klinik soru/şık metinleri (veri) doğal olarak uzun; E501 muaf.
+"src/psikiyatri_ai/data/interview_questions.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
