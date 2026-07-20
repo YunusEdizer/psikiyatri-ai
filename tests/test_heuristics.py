@@ -32,3 +32,14 @@ def test_case_insensitive_turkish():
 def test_probability_in_range():
     r = analyze_text_risk("panik korku endişe gergin huzursuz tedirgin")
     assert 0.0 <= r.depression_probability <= 1.0
+
+
+def test_high_risk_negation_not_flagged():
+    from psikiyatri_ai.modalities.text.heuristics import analyze_text_risk
+
+    # Olumsuzlanmış yüksek-risk ifadesi bayrak üretmemeli
+    assert analyze_text_risk("Kendime zarar verme düşüncem yok.").high_risk is False
+    assert analyze_text_risk("İntihar düşüncem yok, iyiyim.").high_risk is False
+    # Olumlu ifade bayrak üretmeli
+    pos = analyze_text_risk("Yaşamak istemiyorum, kendime zarar vermeyi düşünüyorum.")
+    assert pos.high_risk is True

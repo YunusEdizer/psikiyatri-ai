@@ -92,7 +92,9 @@ def test_session_analyze_with_transcript():
         assert r.status_code == 200
         body = r.json()
         assert body["analysis_available"] is True
-        assert body["predicted_label"] in ("kontrol", "depresyon")
+        # Model sınıf kümesi manifeste göre değişir (ikili → çok-sınıflı +
+        # kontrol); tahmin geçerli bir olasılık anahtarı olmalı.
+        assert body["predicted_label"] in {*body["probabilities"], "belirsiz"}
         assert body["matched_indicators"]  # belirti ifadeleri saptanmalı
         assert body["risk_level"] in ("düşük", "orta", "yüksek")
 

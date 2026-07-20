@@ -59,6 +59,22 @@ class TextRiskResult:
         return self.depression_probability
 
 
+# Olumsuzlama belirteçleri: yüksek-risk ifadesi bir olumsuzlamayla
+# geçiyorsa (ör. "kendime zarar verme düşüncem YOK") risk bayrağı üretilmez.
+_NEGATIONS = ("yok", "yoktur", "değil", "olmadı", "olmuyor", "hiçbir zaman", "asla")
+
+
+def _is_negated(lowered: str, match_start: int, match_end: int) -> bool:
+    """Eşleşen ifadenin bulunduğu tümcecikte olumsuzlama var mı?
+
+    İfadeden sonra (aynı tümcede, ~35 karakter) bir olumsuzlama belirteci
+    gelirse olumsuz kabul edilir. Türkçe olumsuzluk çoğunlukla sona gelir
+    ("... düşüncem yok", "... değil").
+    """
+    tail = lowered[match_end : match_end + 35].split(".")[0].split(",")[0]
+    return any(neg in tail for neg in _NEGATIONS)
+
+
 def analyze_text_risk(text: str) -> TextRiskResult:
     """Transkriptten sözlük-tabanlı ön risk olasılığı üretir.
 
@@ -74,7 +90,15 @@ def analyze_text_risk(text: str) -> TextRiskResult:
     high_risk = False
 
     for category, terms in LEXICON.items():
-        hits = [t for t in terms if re.search(re.escape(_lower_tr(t)), lowered)]
+        hits: list[str] = []
+        for t in terms:
+            m = re.search(re.escape(_lower_tr(t)), lowered)
+            if not m:
+                continue
+            # Yüksek-risk ifadesi olumsuzlanmışsa (ör. "... yok") sayma.
+            if category == "yüksek risk" and _is_negated(lowered, m.start(), m.end()):
+                continue
+            hits.append(t)
         if hits:
             matched[category] = hits
             weighted += _CATEGORY_WEIGHT.get(category, _DEFAULT_WEIGHT) * len(hits)

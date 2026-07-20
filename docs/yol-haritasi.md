@@ -61,6 +61,23 @@ Proje formundaki Gantt şeması, süreç fazlarına ek olarak **modül-odaklı**
 - [x] KVKK derinleştirme — isim maskeleme, açık rıza alanları, denetim günlüğü (`audit.py`), üretimde salt zorunluluğu
 - [ ] Gerçek veriyle ilk eğitim ve temel (baseline) metrikler
 
+## Model Durumu ve Dürüst Sınırlar (Temmuz 2026)
+
+- Türkçe NLP korpusu (klinik sürüm 20260719) + üretilmiş **kontrol
+  (sağlıklı) sınıfı** ile 9 sınıflı model; BERTurk **son 2 katman ince
+  ayarı** (`--unfreeze-text-layers 2`) → sözlük-tabanlı doğrulamada model
+  artık "kontrol" (belirgin bulgu yok) diyebiliyor.
+- **Denge-doğruluk 1.00 YANILTICIDIR:** korpus sınıf-başına şablonlu
+  (sentetik) olduğundan model dilsel örüntü yerine şablonu ezberliyor
+  (bkz. proje yöneticisi geri bildirimi). Gerçek klinik nota genelleme
+  **kanıtlanmamıştır**; gerçek/etiketli klinik veri gerektirir.
+- **Etiket sızıntısı çözülü:** transkript yalnızca hasta-sesi Q1–Q24'ten
+  kurulur, tanı adı `[TANI]` ile maskelenir; yeni veri seti kaynakta da
+  temiz (Kalite_Kontrol: 0 eşleşme).
+- **Uyumsuzluk (incongruence) hipotezi AÇIK:** yeni veri seti 2800 kayıtta
+  kısmi görsel-ses farkı içerse de sentetiktir ve ses/görüntü kodlayıcıları
+  eğitilmediğinden hat bunu kullanamaz; **gerçek multimodal veri bekliyor**.
+
 ## Aşama 3 — Klinik Yazılım Katmanı ✅ (Temmuz 2026)
 
 Başvuru iş planındaki "karar destek yazılımı" taahhütlerinin karşılığı:
