@@ -294,6 +294,7 @@
                   <div id="pp-note"></div>
                   <div class="actions no-print">
                     <button class="btn sm" id="btn-newint">+ Yeni Görüşme</button>
+                    <button class="ghost sm" id="btn-autoint">◉ Otomatik Görüşme</button>
                     <button class="ghost danger-text hidden" id="btn-delpat" style="color:var(--danger);border-color:var(--danger)">Hastayı sil (KVKK)</button>
                   </div>
                 </div>
@@ -484,12 +485,14 @@
             <div>
               <!-- Adım 1: onam + başlangıç -->
               <div class="card" id="iv-setup">
-                <div class="hd"><h2>Yönlendirmeli Otomatik Görüşme</h2><span class="sub">24 soruluk tarama protokolü</span></div>
+                <div class="hd"><h2>Yönlendirmeli Otomatik Görüşme</h2><span class="sub">ÖB1-3 + 24 soruluk tarama protokolü</span></div>
                 <div class="bd">
+                  <div id="iv-patient-banner" class="hidden" style="margin-bottom:10px; padding:8px 12px; border-radius:8px; background:rgba(20,120,110,.10); border:1px solid rgba(20,120,110,.35); color:var(--primary); font-weight:600; font-size:.9rem"></div>
                   <div class="note">Sistem tarama sorularını sırayla ekranda gösterir ve sesli okur; danışan
-                    yanıtını sesli verir. Yanıtlar konuşma tanımayla metne dökülür (elle düzeltilebilir) ve
+                    şık seçer, gerekirse yerel (KVKK-temiz) Whisper ile sesli açıklama ekler ve
                     görüşme boyunca kamera + mikrofon kaydı alınır. Görüşme bitiminde görüntü, ses ve metin
-                    birlikte analiz edilir. <b>Kalıcı kayıt tutulmaz</b>; kayıtlar analiz sonrası silinir.</div>
+                    birlikte analiz edilir. Hastaya bağlı başlatıldıysa görüşme <b>kaydedilir</b>; kayıtsız
+                    modda <b>kalıcı kayıt tutulmaz</b>.</div>
                   <div class="row2 field">
                     <div><label class="lbl">Danışan takma-kimliği</label>
                       <input type="text" id="iv-pid" placeholder="örn. pid_00427" /></div>
@@ -814,6 +817,10 @@
         const v = a.dataset.view;
         if (v !== "quick" && v !== "interview" && !S.user) { toast("Bu bölüm için giriş yapmalısınız."); return; }
         setView(v);
+        if (v === "interview") {  // nav'dan açılış = kayıtsız mod
+          IV.patientId = null;
+          const b = $("#iv-patient-banner"); if (b) b.classList.add("hidden");
+        }
         if (v === "patients") loadPatients();
         if (v === "dataset") initDataset();
         if (v === "admin") { loadUsers(); loadAudit(); }
@@ -1419,19 +1426,31 @@
       await ivStopMedia();
       try {
         const fd = new FormData();
-        fd.append("pseudonym", $("#iv-pid").value);
-        fd.append("evaluator", $("#iv-ev").value);
         fd.append("answers", JSON.stringify(IV.answers));
         if (IV.chunksV.length) fd.append("video", new Blob(IV.chunksV, { type: "video/webm" }), "gorusme-video.webm");
         if (IV.chunksA.length) fd.append("audio", new Blob(IV.chunksA, { type: "audio/webm" }), "gorusme-ses.webm");
-        const res = await fetch("/interview/analyze", { method: "POST", body: fd });
+        // Hastaya bağlıysa auth'lu kalıcı uç; değilse kayıtsız hızlı analiz.
+        let res;
+        if (IV.patientId) {
+          res = await fetch(`/patients/${IV.patientId}/interviews/auto`, {
+            method: "POST", headers: { Authorization: "Bearer " + S.token }, body: fd,
+          });
+        } else {
+          fd.append("pseudonym", $("#iv-pid").value);
+          fd.append("evaluator", $("#iv-ev").value);
+          res = await fetch("/interview/analyze", { method: "POST", body: fd });
+        }
         if (!res.ok) {
           let detail = "Sunucu hatası: " + res.status;
           try { const j = await res.json(); if (j.detail) detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch {}
           throw new Error(detail);
         }
         renderReport(await res.json(), "#iv-report", "#iv-rep-empty", "#iv-rmethod");
-        $("#iv-done-msg").innerHTML = "Analiz tamamlandı — rapor sağda. Kayıtlar analiz sonrası sunucuda silindi.";
+        const persisted = IV.patientId
+          ? " Görüşme hasta kaydına işlendi."
+          : " Kayıtlar analiz sonrası sunucuda silindi.";
+        $("#iv-done-msg").innerHTML = "Analiz tamamlandı — rapor sağda." + persisted;
+        if (IV.patientId) openPatientSilently(IV.patientId);  // görüşme geçmişini tazele
       } catch (e) {
         $("#iv-done-msg").innerHTML = "Analiz başarısız: " + esc(e.message);
       }
@@ -1484,6 +1503,20 @@
       st.innerHTML = '<span style="color:var(--danger)">● kaydediyor</span> — bitince tıklayın';
     }
     $("#iv-rec-ans").onclick = ivRecordAnswer;
+
+    // Hasta profilinden otomatik görüşme başlat (kalıcı kayıt).
+    $("#btn-autoint").onclick = () => {
+      if (!S.patient) return;
+      IV.patientId = S.patient.id;
+      $("#iv-pid").value = S.patient.pseudonym;
+      $("#iv-ev").value = (S.user && (S.user.full_name || S.user.username)) || "";
+      $("#iv-pidwrap") && $("#iv-pidwrap").classList.add("hidden");
+      $("#iv-patient-banner") && ($("#iv-patient-banner").textContent =
+        "Hasta kaydına bağlı görüşme: " + S.patient.pseudonym, $("#iv-patient-banner").classList.remove("hidden"));
+      $("#iv-setup").classList.remove("hidden");
+      $("#iv-run").classList.add("hidden"); $("#iv-done").classList.add("hidden");
+      setView("interview");
+    };
 
     $("#iv-start").onclick = ivStart;
     $("#iv-next").onclick = () => ivAdvance(false);

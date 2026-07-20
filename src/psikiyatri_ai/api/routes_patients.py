@@ -298,6 +298,125 @@ async def create_interview(
         cleanup(tmp_files)
 
 
+@router.post(
+    "/patients/{patient_id}/interviews/auto",
+    response_model=InterviewReport,
+    status_code=201,
+)
+async def create_auto_interview(
+    patient_id: int,
+    answers: str = Form("[]"),
+    video: UploadFile | None = File(None),
+    audio: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> InterviewReport:
+    """Otomatik (seçenekli) görüşmeyi hasta kaydına kalıcı olarak işler.
+
+    ``answers`` = ``[{"id","selected","other"}, ...]``. Belirti yanıtları
+    kanonik transkripte çevrilir; ön bilgi (ÖB) bağlam olarak, kritik
+    yanıtlar hem raporda hem otomatik bir klinisyen-notu olarak saklanır.
+    """
+    import json  # noqa: PLC0415
+
+    from ..data.interview_questions import (  # noqa: PLC0415
+        build_interview_transcript,
+        build_preinfo_summary,
+        critical_flags,
+    )
+
+    try:
+        parsed = json.loads(answers)
+        if not isinstance(parsed, list):
+            raise ValueError("liste bekleniyor")
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"'answers' geçersiz: {exc}") from exc
+
+    patient = _get_patient(db, patient_id)
+    transcript = build_interview_transcript(parsed)
+    preinfo = build_preinfo_summary(parsed)
+    flags = critical_flags(parsed)
+
+    received, media_paths, tmp_files = await collect_uploads(video, audio, None)
+    try:
+        if not received and not transcript and not preinfo:
+            raise HTTPException(status_code=422, detail="En az bir yanıt veya kayıt gerekli.")
+
+        evaluator = user.full_name or user.username
+        report = session_logic.analyze_session(
+            patient.pseudonym, evaluator, transcript, received, media_paths
+        )
+        decision = generate_decision(
+            probabilities=report.get("probabilities"),
+            predicted_label=report.get("predicted_label"),
+            risk_level=report.get("risk_level"),
+            high_risk=bool(report.get("high_risk")),
+            incongruence=report.get("incongruence"),
+            scored_modalities=report.get("scored_modalities") or [],
+            matched_indicators=report.get("matched_indicators") or {},
+            trained=bool(report.get("trained")),
+            has_transcript=bool(transcript),
+        )
+        if report.get("analysis_available"):
+            report["risk_level"] = decision["risk"]["level"]
+        report["preinfo"] = preinfo
+        report["critical_flags"] = flags
+
+        interview = Interview(
+            patient_id=patient.id,
+            session_id=report["session_id"],
+            evaluator_id=user.id,
+            transcript_masked=report.get("transcript_preview"),
+        )
+        db.add(interview)
+        db.flush()
+
+        # Ön bilgi + kritik bayrakları karar profiline iliştir (kalıcı, JSON).
+        decision_stored = {**decision, "preinfo": preinfo, "critical_flags": flags}
+        db.add(AnalysisResult(
+            interview_id=interview.id,
+            method=report.get("method") or "-",
+            predicted_label=report.get("predicted_label"),
+            risk_level=report.get("risk_level"),
+            high_risk=bool(report.get("high_risk")),
+            incongruence=report.get("incongruence"),
+            probabilities=report.get("probabilities"),
+            modality_contributions=report.get("modality_contributions"),
+            matched_indicators=report.get("matched_indicators"),
+            scored_modalities=report.get("scored_modalities"),
+            decision=decision_stored,
+        ))
+
+        # Kritik yanıtlar → otomatik klinisyen notu (kayıtta görünür bıraksın).
+        notes: list[DoctorNote] = []
+        if flags:
+            summary = "SİSTEM UYARISI — uzman değerlendirmesi gerektiren yanıtlar:\n" + "\n".join(
+                f"- {f['question']} → {f['answer']} ({f['warn']})" for f in flags
+            )
+            note = DoctorNote(interview_id=interview.id, author_id=user.id, content_masked=summary)
+            db.add(note)
+            notes.append(note)
+
+        db.commit()
+        db.refresh(interview)
+        audit.log_event(
+            "auto_interview_created",
+            subject=patient.pseudonym,
+            detail={"by": user.username, "interview_id": interview.id, "flags": len(flags)},
+        )
+
+        return InterviewReport(
+            **report,
+            interview_id=interview.id,
+            patient_id=patient.id,
+            patient_pseudonym=patient.pseudonym,
+            decision=decision,
+            notes=[_note_out(db, n) for n in notes],
+        )
+    finally:
+        cleanup(tmp_files)
+
+
 @router.get("/interviews/{interview_id}", response_model=InterviewReport)
 def get_interview(
     interview_id: int,

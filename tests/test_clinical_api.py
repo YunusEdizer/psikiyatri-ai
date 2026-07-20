@@ -176,3 +176,43 @@ def test_interview_rejects_invalid_severity(client):
         headers=headers,
     )
     assert r.status_code == 422
+
+
+def test_auto_interview_persists_to_patient(client):
+    import json
+
+    from psikiyatri_ai.data.interview_questions import INTERVIEW_QUESTIONS
+
+    by_key = {q["key"]: q["id"] for q in INTERVIEW_QUESTIONS}
+    headers = _login(client)
+    pid = client.post(
+        "/patients", json={"birth_year": 1990, "gender": "Kadın"}, headers=headers
+    ).json()["id"]
+
+    answers = [
+        {"id": by_key["ÖB1"], "selected": "Evet, tanı konuldu ve hâlen takip/tedavi altındayım"},
+        {"id": by_key["Q1"], "selected": "Çok kötü/baş etmekte zorlanıyorum",
+         "other": "Kendimi çok mutsuz ve değersiz hissediyorum."},
+        {"id": by_key["Q6"], "selected": "Şu anda düşünce var, plan yok"},
+    ]
+    r = client.post(
+        f"/patients/{pid}/interviews/auto",
+        data={"answers": json.dumps(answers)},
+        headers=headers,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    # Ön bilgi + kritik bayrak raporda
+    assert any(p["key"] == "ÖB1" for p in body["preinfo"])
+    assert any(f["key"] == "Q6" for f in body["critical_flags"])
+    # Kritik yanıt otomatik klinisyen notu olarak eklendi
+    assert any("SİSTEM UYARISI" in n["content_masked"] for n in body["notes"])
+
+    # Görüşme hasta kaydına kalıcı işlendi
+    detail = client.get(f"/patients/{pid}", headers=headers).json()
+    assert len(detail["interviews"]) == 1
+
+
+def test_auto_interview_requires_auth(client):
+    r = client.post("/patients/1/interviews/auto", data={"answers": "[]"})
+    assert r.status_code == 401
