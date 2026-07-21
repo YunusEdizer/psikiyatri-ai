@@ -252,10 +252,12 @@ def analyze_session(
         try:
             from ..modalities.vision.observations import (
                 describe_video,
-                observation_to_dict,
+            )
+            from ..modalities.vision.observations import (
+                observation_to_dict as face_obs_to_dict,
             )
 
-            obs = observation_to_dict(describe_video(media_paths["vision"]))
+            obs = face_obs_to_dict(describe_video(media_paths["vision"]))
             report["vision_observation"] = obs
             report["vision_pending"] = obs is None  # model/okuma yoksa beklemede
         except Exception:  # noqa: BLE001 - gözlem hattı tanıyı kesmemeli

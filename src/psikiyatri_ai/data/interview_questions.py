@@ -467,7 +467,8 @@ def build_interview_transcript(answers: list[dict]) -> str:
     by_id = {q["id"]: q for q in INTERVIEW_QUESTIONS}
     parts: list[str] = []
     for a in answers:
-        q = by_id.get(a.get("id"))
+        qid = a.get("id")
+        q = by_id.get(qid) if isinstance(qid, int) else None
         if q is None or q["section"] != "belirti":
             continue
         if "answer" in a and "selected" not in a:
@@ -488,7 +489,8 @@ def build_preinfo_summary(answers: list[dict]) -> list[dict]:
     by_id = {q["id"]: q for q in INTERVIEW_QUESTIONS}
     out: list[dict] = []
     for a in answers:
-        q = by_id.get(a.get("id"))
+        qid = a.get("id")
+        q = by_id.get(qid) if isinstance(qid, int) else None
         if q is None or q["section"] != "on_bilgi":
             continue
         answer = _compose_answer(q, a.get("selected", ""), a.get("other", ""))
@@ -507,7 +509,8 @@ def critical_flags(answers: list[dict]) -> list[dict]:
     by_id = {q["id"]: q for q in INTERVIEW_QUESTIONS}
     flags: list[dict] = []
     for a in answers:
-        q = by_id.get(a.get("id"))
+        qid = a.get("id")
+        q = by_id.get(qid) if isinstance(qid, int) else None
         # Yalnızca belirti sorularının uyarıları klinik bayraktır; ÖB
         # uyarıları bilgilendirme notudur (risk yükseltmez).
         if q is None or q["section"] != "belirti" or not q["warn"]:
