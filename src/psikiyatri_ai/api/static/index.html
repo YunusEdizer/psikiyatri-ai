@@ -76,6 +76,10 @@
     .cols { display:grid; grid-template-columns:minmax(0,420px) 1fr; gap:22px; align-items:start; }
     @media (max-width:960px){ .app{grid-template-columns:1fr;} .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;}
       .nav{display:flex;gap:4px;flex-wrap:wrap;} .side .foot{display:none;} .cols{grid-template-columns:1fr;} .content{padding:16px 14px 40px;} }
+    /* Dar telefon: form ızgaralarını tek sütuna indir, boşlukları küçült */
+    @media (max-width:600px){ .row2{grid-template-columns:1fr;} .content{padding:12px 10px 36px;}
+      .cols{gap:14px;} .actions{flex-wrap:wrap;} .repmeta{grid-template-columns:1fr 1fr;} .tbl{font-size:.85rem;}
+      .hd{flex-wrap:wrap;gap:4px;} }
 
     .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
       box-shadow:0 1px 2px rgba(16,24,40,.04); }
@@ -356,6 +360,7 @@
               <div class="card">
                 <div class="hd"><h2>Görüşme Geçmişi</h2><span class="sub" id="icount"></span></div>
                 <div class="bd">
+                  <div id="itrend"></div>
                   <table class="tbl">
                     <thead><tr><th>Tarih</th><th>Değerlendiren</th><th>Bulgu</th><th>Risk</th></tr></thead>
                     <tbody id="ilist"></tbody>
@@ -563,6 +568,7 @@
                           placeholder="Seçtiğiniz şıkka ek açıklama veya 'Diğer' yanıtı…"></textarea>
                       </div>
                       <div class="actions">
+                        <button class="ghost" id="iv-back" aria-label="Önceki soru">◀ Önceki</button>
                         <button class="btn" id="iv-next">Sonraki Soru →</button>
                         <button class="ghost" id="iv-skip">Yanıtsız geç</button>
                         <button class="ghost" id="iv-abort" style="margin-left:auto; color:var(--danger); border-color:var(--danger)">İptal</button>
@@ -886,8 +892,32 @@
       } catch (e) { toast(e.message); }
     };
 
+    const RISK_COLOR = { "yüksek": "#c0392b", "orta": "#d68910", "düşük": "#1e8e5a" };
+
+    function renderTrend(list) {
+      const el = $("#itrend");
+      if (!el) return;
+      // Kronolojik (eskiden yeniye) risk/tanı seyri — boylamsal izlem.
+      const chron = [...list].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      if (chron.length < 2) { el.innerHTML = ""; return; }
+      const dots = chron.map((i) => {
+        const c = RISK_COLOR[i.risk_level] || "var(--border)";
+        const lbl = (i.predicted_label ? (clsLabel[i.predicted_label] || i.predicted_label) : "—");
+        const t = `${fmtDate(i.created_at)} · ${lbl} · ${i.risk_level || "—"} risk`;
+        return `<div title="${esc(t)}" style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:44px; cursor:default">
+          <div style="width:15px; height:15px; border-radius:50%; background:${c}; border:2px solid var(--card,#fff); box-shadow:0 0 0 1px ${c}"></div>
+          <div style="font-size:.62rem; color:var(--muted); white-space:nowrap">${fmtDate(i.created_at).split(" ")[0]}</div></div>`;
+      }).join('<div style="flex:1; height:2px; background:var(--border); margin:0 2px; margin-top:6px; min-width:14px"></div>');
+      el.innerHTML = `<div style="margin-bottom:12px">
+        <label class="lbl">Risk seyri (boylamsal izlem)</label>
+        <div style="display:flex; align-items:flex-start; overflow-x:auto; padding:6px 2px 2px">${dots}</div>
+        <div class="hint" style="margin-top:2px">Yeşil: düşük · Turuncu: orta · Kırmızı: yüksek risk — soldan sağa zaman.</div>
+      </div>`;
+    }
+
     function renderInterviews(list) {
       $("#icount").textContent = list.length + " görüşme";
+      renderTrend(list);
       $("#ilist").innerHTML = list.length ? list.map((i) => `
         <tr class="rowlink" onclick="openInterview(${i.id})">
           <td>${fmtDate(i.created_at)}</td>
@@ -913,6 +943,22 @@
       try {
         const d = await api("/interviews/" + id);
         renderReport(d, "#report", "#rep-empty", "#rmethod");
+      } catch (e) { toast(e.message); }
+    };
+
+    // Uzman kararı (AI çıktısına ilişkin) — insan-döngü onayı
+    window.setClinicianDecision = async (interviewId, agreement) => {
+      const assessment = prompt("Nihai izlenim / not (isteğe bağlı):", "") || "";
+      try {
+        await api(`/interviews/${interviewId}/clinician-decision`, {
+          method: "POST", json: { agreement, assessment },
+        });
+        toast("Uzman görüşü kaydedildi.");
+        const d = await api("/interviews/" + interviewId);  // raporu tazele
+        // Aktif rapor hedefini bul (hasta profili veya görüşme paneli)
+        const target = document.querySelector("#report:not(.hidden)") ? "#report" : "#iv-report";
+        renderReport(d, target, target === "#report" ? "#rep-empty" : "#iv-rep-empty",
+          target === "#report" ? "#rmethod" : "#iv-rmethod");
       } catch (e) { toast(e.message); }
     };
 
@@ -1108,6 +1154,25 @@
       const preinfoSec = pi.length ? `<div class="sec"><label class="lbl">Ön bilgi (bağlam — tanıya katılmaz)</label>
         <table class="tbl"><tbody>${pi.map((p) => `<tr><td style="width:60%">${esc(p.question)}</td><td><b>${esc(p.answer)}</b></td></tr>`).join("")}</tbody></table></div>` : "";
 
+      // KVKK açık rıza kaydı
+      const consentSec = d.consent
+        ? `<div class="sec"><div class="hint" style="color:var(--primary); font-weight:600">✔ KVKK açık rıza alındı${d.consent_at ? " · " + fmtDate(d.consent_at) : ""}</div></div>`
+        : "";
+
+      // Klinisyen karar döngüsü (yalnız kalıcı, hasta-bağlı görüşmede)
+      const AGR = { katiliyorum: "Katılıyorum", kismen: "Kısmen katılıyorum", katilmiyorum: "Katılmıyorum" };
+      const clinicianSec = d.interview_id ? (() => {
+        const cur = d.clinician_agreement;
+        const curTxt = cur
+          ? `<div style="margin-bottom:8px">Uzman görüşü: <b>${AGR[cur] || cur}</b>${d.clinician_assessment ? ` — ${esc(d.clinician_assessment)}` : ""}</div>`
+          : `<div class="hint" style="margin-bottom:8px">Henüz uzman görüşü kaydedilmedi.</div>`;
+        const btns = Object.entries(AGR).map(([k, v]) =>
+          `<button class="ghost sm no-print" onclick="setClinicianDecision(${d.interview_id}, '${k}')">${v}</button>`).join("");
+        return `<div class="sec no-print"><label class="lbl">Uzman kararı (AI çıktısına ilişkin)</label>
+          ${curTxt}<div class="actions">${btns}</div>
+          <div class="hint" style="margin-top:4px">Nihai karar uzmana aittir; bu kayıt insan-döngüde onayı belgeler.</div></div>`;
+      })() : "";
+
       // Betimsel akustik gözlem (tanı değil) — kaydedilen sesten ham sinyal ölçütleri
       const ao = d.audio_observation;
       const acousticSec = ao ? (() => {
@@ -1158,9 +1223,11 @@
           ${clinMeta.join("")}
         </div>
         ${banner}
+        ${consentSec}
         ${criticalSec}
         ${d.analysis_available && d.probabilities ? `<div class="sec"><label class="lbl">Olasılık dağılımı</label>${probBars(d.probabilities)}</div>` : ""}
         ${decisionSection(d.decision)}
+        ${clinicianSec}
         ${dlSection}
         ${indicators}
         ${acousticSec}
@@ -1262,8 +1329,10 @@
       } catch (e) { err.textContent = "Sorular yüklenemedi: " + e.message; return; }
 
       IV.idx = 0; IV.answers = []; IV.chunksV = []; IV.chunksA = [];
+      IV.consentAt = new Date().toISOString();  // KVKK: onam anı
       IV.sttOn = $("#iv-stt").checked; IV.ttsOn = $("#iv-tts").checked;
       IV.running = true;
+      window.addEventListener("beforeunload", ivUnloadGuard);
 
       // Kamera + mikrofon (yoksa yalnız yazılı yanıtla devam)
       $("#iv-camerr").textContent = "";
@@ -1356,37 +1425,52 @@
       $("#iv-bar").style.width = ((IV.idx / IV.qs.length) * 100).toFixed(1) + "%";
       $("#iv-cat").textContent = isPre ? "Ön bilgi (bağlam)" : "Belirti kümesi: " + (q.category || "-").replace(/_/g, " ");
       $("#iv-q").textContent = q.text;
-      $("#iv-ans").value = "";
       if ($("#iv-rec-state")) $("#iv-rec-state").textContent = "";
+      // Bu soruya daha önce verilmiş yanıtı geri yükle (geri/ileri gezinme).
+      const saved = IV.answers[IV.idx] || {};
+      IV.selected = saved.selected || "";
+      $("#iv-ans").value = saved.other || "";
       // Kritik uyarı bandı
       const w = $("#iv-warn");
       if (q.warn) { w.textContent = "⚠ " + q.warn; w.classList.remove("hidden"); }
       else w.classList.add("hidden");
-      // Şıklar (radio)
+      // Şıklar (radio) — erişilebilir radiogroup
       const box = $("#iv-opts");
+      box.setAttribute("role", "radiogroup");
+      box.setAttribute("aria-label", q.text);
       box.innerHTML = (q.options || []).map((opt, i) => `
         <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; cursor:pointer" class="iv-opt">
-          <input type="radio" name="iv-opt" value="${esc(opt)}" data-i="${i}" style="accent-color:var(--primary)">
+          <input type="radio" name="iv-opt" value="${esc(opt)}" data-i="${i}" style="accent-color:var(--primary)"${opt === IV.selected ? " checked" : ""}>
           <span>${esc(opt)}</span></label>`).join("");
+      const markSel = (r) => {
+        box.querySelectorAll(".iv-opt").forEach((l) => l.style.borderColor = "var(--border)");
+        if (r) r.closest(".iv-opt").style.borderColor = "var(--primary)";
+      };
       box.querySelectorAll('input[name="iv-opt"]').forEach((r) => {
+        if (r.checked) markSel(r);
         r.onchange = () => {
           IV.selected = r.value;
-          box.querySelectorAll(".iv-opt").forEach((l) => l.style.borderColor = "var(--border)");
-          r.closest(".iv-opt").style.borderColor = "var(--primary)";
+          markSel(r);
           const other = /^Diğer/.test(r.value);
           $("#iv-otherlbl").innerHTML = other
             ? 'Açıklama <span class="hint" style="font-weight:400; color:var(--danger)">— "Diğer" için yanıt gerekli</span>'
             : 'Açıklama (isteğe bağlı) <span class="hint" style="font-weight:400">— sesli yanıt buraya yazılır; gerekirse düzeltin</span>';
         };
       });
+      $("#iv-back").disabled = IV.idx === 0;
       $("#iv-next").textContent = IV.idx === IV.qs.length - 1 ? "Görüşmeyi Bitir ✓" : "Sonraki Soru →";
+      // Odağı ilk/seçili şıkka taşı (klavye kullanımı).
+      const focusEl = box.querySelector('input[name="iv-opt"]:checked') || box.querySelector('input[name="iv-opt"]');
+      if (focusEl) focusEl.focus();
       ivSpeak(q.text);
     }
 
     function ivCommit(skip = false) {
       const q = IV.qs[IV.idx];
-      if (skip) { IV.answers.push({ id: q.id, selected: "", other: "" }); return; }
-      IV.answers.push({ id: q.id, selected: IV.selected || "", other: $("#iv-ans").value.trim() });
+      // Konuma göre sakla (üzerine yazılabilir → geri dönüp düzeltme).
+      IV.answers[IV.idx] = skip
+        ? { id: q.id, selected: "", other: "" }
+        : { id: q.id, selected: IV.selected || "", other: $("#iv-ans").value.trim() };
     }
 
     async function ivAdvance(skip = false) {
@@ -1400,8 +1484,20 @@
       else await ivFinish();
     }
 
+    function ivBack() {
+      if (IV.idx === 0) return;
+      ivCommit(!IV.selected && !$("#iv-ans").value.trim());  // mevcut ilerlemeyi koru
+      IV.idx--; ivShowQuestion();
+    }
+
+    // Görüşme sürerken sekme/kapatmaya karşı uyarı (kayıp koruması).
+    function ivUnloadGuard(e) {
+      if (IV.running) { e.preventDefault(); e.returnValue = ""; return ""; }
+    }
+
     function ivStopMedia() {
       IV.running = false;
+      window.removeEventListener("beforeunload", ivUnloadGuard);
       if ("speechSynthesis" in window) speechSynthesis.cancel();
       ivSttPause(); IV.stt = null;
       clearInterval(IV.timer);
@@ -1420,18 +1516,21 @@
     async function ivFinish() {
       $("#iv-run").classList.add("hidden");
       $("#iv-done").classList.remove("hidden");
-      const answered = IV.answers.filter((a) => (a.selected || a.other || a.answer)).length;
+      const answers = IV.answers.filter(Boolean);
+      const answered = answers.filter((a) => (a.selected || a.other || a.answer)).length;
       $("#iv-done-sub").textContent = `${answered}/${IV.qs.length} soru yanıtlandı`;
-      $("#iv-done-msg").innerHTML = '<span class="spin"></span> Kayıtlar kapatılıyor ve çok-modaliteli analiz çalışıyor…';
+      $("#iv-done-msg").innerHTML = '<span class="spin"></span> Kayıtlar kapatılıyor ve çok-modaliteli analiz çalışıyor… <span class="hint">(ilk analiz model yüklemesi nedeniyle biraz sürebilir)</span>';
       await ivStopMedia();
       try {
         const fd = new FormData();
-        fd.append("answers", JSON.stringify(IV.answers));
+        fd.append("answers", JSON.stringify(answers));
         if (IV.chunksV.length) fd.append("video", new Blob(IV.chunksV, { type: "video/webm" }), "gorusme-video.webm");
         if (IV.chunksA.length) fd.append("audio", new Blob(IV.chunksA, { type: "audio/webm" }), "gorusme-ses.webm");
         // Hastaya bağlıysa auth'lu kalıcı uç; değilse kayıtsız hızlı analiz.
         let res;
         if (IV.patientId) {
+          fd.append("consent", "true");  // KVKK: onam ekranda alındı
+          fd.append("consent_at", IV.consentAt || new Date().toISOString());
           res = await fetch(`/patients/${IV.patientId}/interviews/auto`, {
             method: "POST", headers: { Authorization: "Bearer " + S.token }, body: fd,
           });
@@ -1519,6 +1618,7 @@
     };
 
     $("#iv-start").onclick = ivStart;
+    $("#iv-back").onclick = ivBack;
     $("#iv-next").onclick = () => ivAdvance(false);
     $("#iv-skip").onclick = () => ivAdvance(true);
     $("#iv-abort").onclick = ivAbort;

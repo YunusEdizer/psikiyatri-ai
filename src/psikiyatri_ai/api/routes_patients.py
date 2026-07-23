@@ -14,6 +14,7 @@ KVKK:
 from __future__ import annotations
 
 import secrets
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
@@ -27,6 +28,7 @@ from ..decision import generate_decision
 from ..modalities.text.preprocess import normalize_text
 from . import session as session_logic
 from .schemas import (
+    ClinicianDecisionCreate,
     DoctorNoteCreate,
     DoctorNoteOut,
     InterviewReport,
@@ -306,6 +308,8 @@ async def create_interview(
 async def create_auto_interview(
     patient_id: int,
     answers: str = Form("[]"),
+    consent: bool = Form(False),
+    consent_at: str = Form(""),
     video: UploadFile | None = File(None),
     audio: UploadFile | None = File(None),
     db: Session = Depends(get_db),
@@ -332,10 +336,17 @@ async def create_auto_interview(
     except (json.JSONDecodeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=f"'answers' geçersiz: {exc}") from exc
 
+    # KVKK: kamera/mikrofonlu görüşme açık rıza olmadan işlenemez.
+    if not consent:
+        raise HTTPException(
+            status_code=422, detail="Görüşmenin işlenmesi için açık rıza (KVKK onamı) gereklidir."
+        )
+
     patient = _get_patient(db, patient_id)
     transcript = build_interview_transcript(parsed)
     preinfo = build_preinfo_summary(parsed)
     flags = critical_flags(parsed)
+    consent_ts = (consent_at.strip() or datetime.now(UTC).isoformat(timespec="seconds"))
 
     received, media_paths, tmp_files = await collect_uploads(video, audio, None)
     try:
@@ -346,6 +357,11 @@ async def create_auto_interview(
         report = session_logic.analyze_session(
             patient.pseudonym, evaluator, transcript, received, media_paths
         )
+        # GÜVENLİK: Q6 (kendine zarar) kritik bayrağı, seçenek metni risk
+        # sözlüğüyle eşleşmese bile riski yükseltmeli.
+        self_harm = any(f.get("key") == "Q6" for f in flags)
+        if self_harm:
+            report["high_risk"] = True
         decision = generate_decision(
             probabilities=report.get("probabilities"),
             predicted_label=report.get("predicted_label"),
@@ -371,9 +387,17 @@ async def create_auto_interview(
             transcript_masked=(
                 mask_pii(normalize_text(transcript)) if transcript else None
             ),
+            consent=True,
+            consent_at=consent_ts,
         )
         db.add(interview)
         db.flush()
+        # KVKK: açık rızanın alındığını denetim günlüğüne işle (kanıt).
+        audit.log_event(
+            "consent_recorded",
+            subject=patient.pseudonym,
+            detail={"by": user.username, "at": consent_ts, "interview_id": interview.id},
+        )
 
         # Ön bilgi + kritik bayrakları karar profiline iliştir (kalıcı, JSON).
         decision_stored = {**decision, "preinfo": preinfo, "critical_flags": flags}
@@ -414,6 +438,8 @@ async def create_auto_interview(
             interview_id=interview.id,
             patient_id=patient.id,
             patient_pseudonym=patient.pseudonym,
+            consent=True,
+            consent_at=consent_ts,
             decision=decision,
             notes=[_note_out(db, n) for n in notes],
         )
@@ -475,6 +501,10 @@ def get_interview(
         patient_pseudonym=patient.pseudonym,
         symptom_duration_weeks=interview.symptom_duration_weeks,
         severity=interview.severity,
+        consent=bool(interview.consent),
+        consent_at=interview.consent_at,
+        clinician_agreement=interview.clinician_agreement,
+        clinician_assessment=interview.clinician_assessment,
         decision=analysis.decision if analysis else None,
         preinfo=preinfo,
         critical_flags=critical,
@@ -506,6 +536,47 @@ def add_doctor_note(
         detail={"by": user.username, "interview_id": interview.id},
     )
     return _note_out(db, note)
+
+
+_AGREEMENTS = {"katiliyorum", "kismen", "katilmiyorum"}
+
+
+@router.post("/interviews/{interview_id}/clinician-decision", status_code=200)
+def set_clinician_decision(
+    interview_id: int,
+    payload: ClinicianDecisionCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Uzmanın AI çıktısına ilişkin nihai görüşünü kaydeder (karar döngüsü).
+
+    ``agreement`` = katiliyorum | kismen | katilmiyorum. Serbest ``assessment``
+    metni maskelenerek saklanır. İnsan-döngüde (human-in-the-loop) kaydı;
+    sistemin bir karar DESTEĞİ olduğunu ve nihai kararın uzmana ait olduğunu
+    belgeler.
+    """
+    if payload.agreement not in _AGREEMENTS:
+        raise HTTPException(
+            status_code=422, detail=f"Geçersiz görüş; beklenen: {sorted(_AGREEMENTS)}"
+        )
+    interview = db.get(Interview, interview_id)
+    if interview is None:
+        raise HTTPException(status_code=404, detail="Görüşme kaydı bulunamadı.")
+    interview.clinician_agreement = payload.agreement
+    interview.clinician_assessment = (
+        mask_pii(normalize_text(payload.assessment)) if payload.assessment.strip() else None
+    )
+    db.commit()
+    audit.log_event(
+        "clinician_decision",
+        subject=interview.patient.pseudonym,
+        detail={"by": user.username, "interview_id": interview.id, "agreement": payload.agreement},
+    )
+    return {
+        "interview_id": interview.id,
+        "clinician_agreement": interview.clinician_agreement,
+        "clinician_assessment": interview.clinician_assessment,
+    }
 
 
 # --- denetim günlüğü ----------------------------------------------------------------

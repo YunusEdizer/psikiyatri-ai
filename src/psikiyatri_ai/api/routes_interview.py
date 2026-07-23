@@ -129,6 +129,12 @@ async def analyze_interview(
         report = session.analyze_session(
             pseudonym, evaluator, transcript, received, media_paths
         )
+        # GÜVENLİK: Q6 (kendine zarar) kritik bayrağı riski yükseltir (seçenek
+        # metni risk sözlüğüyle eşleşmese bile).
+        if any(f.get("key") == "Q6" for f in flags):
+            report["high_risk"] = True
+            if report.get("analysis_available"):
+                report["risk_level"] = "yüksek"
         report["preinfo"] = preinfo
         report["critical_flags"] = flags
         return SessionAnalysisResponse(**report)

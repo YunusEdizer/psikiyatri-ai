@@ -74,6 +74,14 @@ class Interview(Base):
     transcript_masked: Mapped[str | None] = mapped_column(Text, default=None)
     symptom_duration_weeks: Mapped[int | None] = mapped_column(Integer, default=None)
     severity: Mapped[str | None] = mapped_column(String(16), default=None)  # hafif|orta|şiddetli
+    # KVKK açık rıza kaydı (özellikle kamera/mikrofonlu otomatik görüşme).
+    consent: Mapped[bool] = mapped_column(Boolean, default=False)
+    consent_at: Mapped[str | None] = mapped_column(String(32), default=None)  # ISO zaman damgası
+    # Klinisyen karar döngüsü: uzmanın AI çıktısına ilişkin nihai görüşü.
+    clinician_agreement: Mapped[str | None] = mapped_column(
+        String(16), default=None  # katiliyorum | kismen | katilmiyorum
+    )
+    clinician_assessment: Mapped[str | None] = mapped_column(Text, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     patient: Mapped[Patient] = relationship(back_populates="interviews")

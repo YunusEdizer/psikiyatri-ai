@@ -108,6 +108,9 @@ def test_analyze_endpoint_with_selected_answers():
         assert body["analysis_available"] is True
         assert body["probabilities"]
         assert any(f["key"] == "Q6" for f in body["critical_flags"])
+        # Kendine zarar bayrağı riski yükseltmeli (seçenek metni sözlükte olmasa da)
+        assert body["high_risk"] is True
+        assert body["risk_level"] == "yüksek"
 
 
 def test_analyze_endpoint_preinfo_in_report():

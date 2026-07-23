@@ -59,3 +59,4 @@ htmlcov/
 .idea/
 Thumbs.db
 .DS_Store
+certs/

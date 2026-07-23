@@ -195,9 +195,17 @@ def test_auto_interview_persists_to_patient(client):
          "other": "Kendimi çok mutsuz ve değersiz hissediyorum."},
         {"id": by_key["Q6"], "selected": "Şu anda düşünce var, plan yok"},
     ]
+    # Onamsız reddedilmeli (KVKK)
+    r0 = client.post(
+        f"/patients/{pid}/interviews/auto",
+        data={"answers": json.dumps(answers)}, headers=headers,
+    )
+    assert r0.status_code == 422
+
     r = client.post(
         f"/patients/{pid}/interviews/auto",
-        data={"answers": json.dumps(answers)},
+        data={"answers": json.dumps(answers), "consent": "true",
+              "consent_at": "2026-07-23T10:00:00"},
         headers=headers,
     )
     assert r.status_code == 201, r.text
@@ -207,16 +215,40 @@ def test_auto_interview_persists_to_patient(client):
     assert any(f["key"] == "Q6" for f in body["critical_flags"])
     # Kritik yanıt otomatik klinisyen notu olarak eklendi
     assert any("SİSTEM UYARISI" in n["content_masked"] for n in body["notes"])
+    # Onam kaydedildi
+    assert body["consent"] is True and body["consent_at"]
 
     # Görüşme hasta kaydına kalıcı işlendi
     detail = client.get(f"/patients/{pid}", headers=headers).json()
     assert len(detail["interviews"]) == 1
 
-    # Yeniden yüklemede ön bilgi + kritik bayraklar KORUNMALI (decision JSON'undan
-    # yapılandırılmış alanlara geri çıkar).
+    # Yeniden yüklemede ön bilgi + kritik bayraklar + onam KORUNMALI.
     stored = client.get(f"/interviews/{body['interview_id']}", headers=headers).json()
     assert any(p["key"] == "ÖB1" for p in stored["preinfo"])
     assert any(f["key"] == "Q6" for f in stored["critical_flags"])
+    assert stored["consent"] is True
+
+    # Uzman kararı (karar döngüsü) kaydedilir ve yeniden yüklemede görünür.
+    dr = client.post(
+        f"/interviews/{body['interview_id']}/clinician-decision",
+        json={"agreement": "kismen", "assessment": "Ek gözlem gerekli."},
+        headers=headers,
+    )
+    assert dr.status_code == 200
+    stored2 = client.get(f"/interviews/{body['interview_id']}", headers=headers).json()
+    assert stored2["clinician_agreement"] == "kismen"
+    assert "Ek gözlem" in (stored2["clinician_assessment"] or "")
+
+
+def test_clinician_decision_rejects_invalid(client):
+    headers = _login(client)
+    pid = client.post("/patients", json={}, headers=headers).json()["id"]
+    r = client.post(
+        f"/patients/{pid}/interviews/auto",
+        data={"answers": "[]", "consent": "true"}, headers=headers,
+    )
+    # Yanıtsız + onamlı ama içerik yok → 422 (en az bir yanıt gerekli)
+    assert r.status_code == 422
 
 
 def test_auto_interview_requires_auth(client):

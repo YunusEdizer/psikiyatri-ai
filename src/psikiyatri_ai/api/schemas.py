@@ -205,6 +205,13 @@ class DoctorNoteCreate(BaseModel):
     content: str = Field(..., min_length=1, description="Not içeriği (maskelenir)")
 
 
+class ClinicianDecisionCreate(BaseModel):
+    """Uzmanın AI çıktısına ilişkin nihai görüşü (karar döngüsü)."""
+
+    agreement: str = Field(..., description="katiliyorum | kismen | katilmiyorum")
+    assessment: str = Field("", description="Uzmanın nihai izlenimi (maskelenir)")
+
+
 class DoctorNoteOut(BaseModel):
     id: int
     author: str | None = None
@@ -251,6 +258,10 @@ class InterviewReport(SessionAnalysisResponse):
     patient_pseudonym: str
     symptom_duration_weeks: int | None = None
     severity: str | None = None
+    consent: bool = False
+    consent_at: str | None = None
+    clinician_agreement: str | None = None
+    clinician_assessment: str | None = None
     decision: DecisionProfile | None = None
     notes: list[DoctorNoteOut] = Field(default_factory=list)
 
