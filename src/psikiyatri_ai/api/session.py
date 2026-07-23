@@ -79,6 +79,7 @@ def _get_inference_model(scored: tuple[str, ...], use_egemaps: bool):
         classes = labels_for_state(state, ["kontrol", "depresyon"])
     else:
         classes = ["kontrol", "depresyon"]
+    temperature = float(meta["temperature"]) if meta and meta.get("temperature") else 1.0
     model_cfg = settings.model.model_copy(update={"num_classes": len(classes)})
     model = PsikiyatriModel(model_cfg, enabled_modalities=scored, use_egemaps=use_egemaps)
     trained = state is not None
@@ -87,8 +88,8 @@ def _get_inference_model(scored: tuple[str, ...], use_egemaps: bool):
     model.eval()
 
     _model_cache.clear()  # tek giriş yeterli; eski checkpoint'i bellekte tutma
-    _model_cache[key] = (model, classes, trained)
-    return model, classes, trained
+    _model_cache[key] = (model, classes, trained, temperature)
+    return model, classes, trained, temperature
 
 
 def score_media(media_paths: dict[str, Path], transcript: str | None = None) -> dict | None:
@@ -137,14 +138,17 @@ def score_media(media_paths: dict[str, Path], transcript: str | None = None) -> 
 
     import torch
 
-    model, classes, trained = _get_inference_model(
+    model, classes, trained, temperature = _get_inference_model(
         tuple(scored), "audio_egemaps" in feats
     )
 
     batch, _ = collate_features([SampleFeatures(label=0, **feats)])
     with torch.no_grad():
         out = model(batch)
-    probs = torch.softmax(out.logits, dim=-1).squeeze(0)
+    # Kalibrasyon: eğitimde öğrenilen sıcaklıkla olasılıkları ölçekle
+    # (argmax/tahmin değişmez, güven kalibre edilir).
+    logits = out.logits / max(temperature, 0.05)
+    probs = torch.softmax(logits, dim=-1).squeeze(0)
     present = batch.present_modalities
     return {
         "probabilities": {classes[i]: float(probs[i]) for i in range(len(classes))},
@@ -203,6 +207,7 @@ def analyze_session(
         "audio_observation": None,
         "vision_observation": None,
         "vision_pending": False,
+        "wearable_observation": None,
         "disclaimer": DISCLAIMER,
         "prototype_note": PROTOTYPE_NOTE,
     }
@@ -262,6 +267,22 @@ def analyze_session(
             report["vision_pending"] = obs is None  # model/okuma yoksa beklemede
         except Exception:  # noqa: BLE001 - gözlem hattı tanıyı kesmemeli
             report["vision_pending"] = True
+    if media_paths.get("wearable"):
+        # Betimsel giyilebilir gözlem (tanı DEĞİL): nabız, HRV, cilt
+        # iletkenliği, hareket/titreme, baskın EEG bandı.
+        try:
+            from ..modalities.wearable.observations import (
+                describe_wearable,
+            )
+            from ..modalities.wearable.observations import (
+                observation_to_dict as wear_obs_to_dict,
+            )
+
+            report["wearable_observation"] = wear_obs_to_dict(
+                describe_wearable(media_paths["wearable"])
+            )
+        except Exception:  # noqa: BLE001 - gözlem hattı tanıyı kesmemeli
+            report["wearable_observation"] = None
 
     high_risk = bool(text_risk.high_risk) if text_risk else False
 

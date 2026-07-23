@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
@@ -38,18 +40,41 @@ def _user_out(user: User) -> UserOut:
     )
 
 
+# Basit bellek-içi giriş hız-sınırı (kaba-kuvvet parola denemelerine karşı):
+# kullanıcı başına, kayan pencerede en fazla _MAX_FAILS başarısız deneme.
+_LOGIN_FAILS: dict[str, list[float]] = {}
+_MAX_FAILS = 5
+_WINDOW_SEC = 300.0
+
+
+def _too_many_fails(username: str) -> bool:
+    now = time.monotonic()
+    fails = [t for t in _LOGIN_FAILS.get(username, []) if now - t < _WINDOW_SEC]
+    _LOGIN_FAILS[username] = fails
+    return len(fails) >= _MAX_FAILS
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(
     form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ) -> TokenResponse:
+    if _too_many_fails(form.username):
+        audit.log_event("login_rate_limited", detail={"username": form.username})
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Çok fazla başarısız deneme. Birkaç dakika sonra tekrar deneyin.",
+            headers={"Retry-After": str(int(_WINDOW_SEC))},
+        )
     user = db.scalar(select(User).where(User.username == form.username))
     if user is None or not user.is_active or not verify_password(form.password, user.password_hash):
+        _LOGIN_FAILS.setdefault(form.username, []).append(time.monotonic())
         audit.log_event("login_failed", detail={"username": form.username})
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Kullanıcı adı veya parola hatalı.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    _LOGIN_FAILS.pop(form.username, None)  # başarı → sayacı sıfırla
     audit.log_event("login", detail={"username": user.username, "role": user.role})
     return TokenResponse(
         access_token=create_access_token(user.username, user.role),

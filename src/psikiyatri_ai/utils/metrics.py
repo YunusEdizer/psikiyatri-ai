@@ -163,6 +163,58 @@ def multiclass_metrics(
     )
 
 
+def confusion_matrix(
+    y_true: np.ndarray, y_pred: np.ndarray, *, num_classes: int
+) -> np.ndarray:
+    """Karışıklık matrisi döndürür — satır: gerçek, sütun: tahmin."""
+    yt = np.asarray(y_true).astype(int)
+    yp = np.asarray(y_pred).astype(int)
+    m = np.zeros((num_classes, num_classes), dtype=int)
+    for t, p in zip(yt, yp, strict=True):
+        if 0 <= t < num_classes and 0 <= p < num_classes:
+            m[t, p] += 1
+    return m
+
+
+def expected_calibration_error(
+    confidences: np.ndarray, correct: np.ndarray, *, n_bins: int = 10
+) -> tuple[float, list[dict[str, float]]]:
+    """Beklenen Kalibrasyon Hatası (ECE) ve güven kutucuklarını hesaplar.
+
+    Args:
+        confidences: her örnek için tahmin edilen sınıfın olasılığı (top-1).
+        correct: tahmin doğru mu (0/1).
+        n_bins: eşit-genişlikli güven kutucuğu sayısı.
+
+    Returns:
+        (ece, bins). ``ece`` düşükse model kalibredir (güven ≈ gerçek doğruluk).
+        Her kutucuk: {aralık, ortalama_güven, doğruluk, örnek_sayısı}.
+    """
+    conf = np.asarray(confidences, dtype=float)
+    corr = np.asarray(correct, dtype=float)
+    n = conf.shape[0]
+    if n == 0:
+        return 0.0, []
+    edges = np.linspace(0.0, 1.0, n_bins + 1)
+    ece = 0.0
+    bins: list[dict[str, float]] = []
+    for i in range(n_bins):
+        lo, hi = edges[i], edges[i + 1]
+        mask = (conf > lo) & (conf <= hi) if i > 0 else (conf >= lo) & (conf <= hi)
+        cnt = int(mask.sum())
+        if cnt == 0:
+            continue
+        avg_conf = float(conf[mask].mean())
+        acc = float(corr[mask].mean())
+        ece += (cnt / n) * abs(avg_conf - acc)
+        bins.append({
+            "aralik_alt": round(float(lo), 2), "aralik_ust": round(float(hi), 2),
+            "ortalama_guven": round(avg_conf, 4), "dogruluk": round(acc, 4),
+            "ornek_sayisi": float(cnt),
+        })
+    return round(ece, 4), bins
+
+
 def compute_metrics(
     y_true: np.ndarray,
     y_pred: np.ndarray,
@@ -186,5 +238,7 @@ __all__ = [
     "ClassificationMetrics",
     "binary_metrics",
     "compute_metrics",
+    "confusion_matrix",
+    "expected_calibration_error",
     "multiclass_metrics",
 ]

@@ -55,6 +55,20 @@ app = FastAPI(
     version=__version__,
 )
 
+@app.middleware("http")
+async def security_headers(request, call_next):  # noqa: ANN001, ANN201
+    """Temel güvenlik başlıkları (clickjacking / MIME-sniff / referrer)."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    # Kamera/mikrofon yalnızca kendi kaynağımıza; başka özellikler kapalı.
+    response.headers.setdefault(
+        "Permissions-Policy", "camera=(self), microphone=(self), geolocation=()"
+    )
+    return response
+
+
 # Register routers BEFORE any direct routes
 app.include_router(routes_auth.router)
 app.include_router(routes_patients.router)
@@ -146,7 +160,14 @@ def app_icon() -> FileResponse:
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     settings = get_settings()
-    return HealthResponse(status="ok", version=__version__, env=settings.env)
+    meta = load_metadata(settings.model_dir) or {}
+    return HealthResponse(
+        status="ok",
+        version=__version__,
+        env=settings.env,
+        model_card=meta.get("card"),
+        model_temperature=meta.get("temperature"),
+    )
 
 
 @app.post("/session/analyze", response_model=SessionAnalysisResponse)

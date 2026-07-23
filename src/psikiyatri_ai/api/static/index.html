@@ -1108,6 +1108,7 @@
         if (mod === "audio" && d.audio_observation) return `<span class="pill ok">betimsel gözlem</span>`;
         if (mod === "vision" && d.vision_observation) return `<span class="pill ok">betimsel gözlem</span>`;
         if (mod === "vision" && d.vision_pending) return `<span class="pill">kaydedildi · yüz analizi beklemede</span>`;
+        if (mod === "wearable" && d.wearable_observation) return `<span class="pill ok">betimsel gözlem</span>`;
         return `<span class="pill">kaydedildi</span>`;
       };
       const rows = (d.received || []).map((f) => {
@@ -1214,6 +1215,24 @@
           <div class="hint" style="margin-top:8px">MediaPipe yüz işaretçilerinden hesaplanır; klinisyene gözlemsel destek sunar, tanı füzyonuna katılmaz.</div></div>`;
       })() : "";
 
+      // Betimsel giyilebilir gözlem (tanı değil)
+      const wo = d.wearable_observation;
+      const wearableSec = wo ? (() => {
+        const q = wo.qualitative || {};
+        const cell = (lbl, val, sub) => `<div style="flex:1; min-width:110px; background:var(--bg2,rgba(0,0,0,.03)); border-radius:8px; padding:10px 12px">
+          <div style="font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em">${lbl}</div>
+          <div style="font-weight:650; font-size:1.02rem">${val}</div>${sub ? `<div style="font-size:.75rem; color:var(--muted)">${sub}</div>` : ""}</div>`;
+        return `<div class="sec"><label class="lbl">Giyilebilir gözlemler (betimsel — tanı değil)</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            ${cell("Nabız", wo.heart_rate != null ? Math.round(wo.heart_rate) + " bpm" : "—", q.nabiz || "")}
+            ${cell("HRV", wo.hrv != null ? wo.hrv : "—", "")}
+            ${cell("Uyarılma", q.uyarilma || "—", "cilt iletkenliği " + (wo.skin_conductance ?? "—"))}
+            ${cell("Hareketlilik", q.hareketlilik || "—", q.titreme ? "titreme: " + q.titreme : "")}
+            ${cell("Baskın EEG", wo.dominant_eeg_band || "—", "")}
+          </div>
+          <div class="hint" style="margin-top:8px">Fizyolojik seriden doğrudan hesaplanır; klinisyene gözlemsel destek sunar, tanı füzyonuna katılmaz.</div></div>`;
+      })() : "";
+
       $(repSel).innerHTML = `
         <div class="repmeta">
           <div><span>Seans</span><b>${esc(d.session_id)}</b></div>
@@ -1232,6 +1251,7 @@
         ${indicators}
         ${acousticSec}
         ${faceSec}
+        ${wearableSec}
         ${preinfoSec}
         ${mediaTable}
         ${d.transcript_preview ? `<div class="sec"><label class="lbl">Maskeli transkript (önizleme)</label><div class="pre">${esc(d.transcript_preview)}</div></div>` : ""}

@@ -88,6 +88,19 @@ class FaceObservation(BaseModel):
     qualitative: dict[str, str] = Field(default_factory=dict)
 
 
+class WearableObservation(BaseModel):
+    """Betimsel giyilebilir sensör gözlemi (tanı değil)."""
+
+    samples: int
+    heart_rate: float | None = None
+    hrv: float | None = None
+    skin_conductance: float | None = None
+    movement: float | None = None
+    tremor: float | None = None
+    dominant_eeg_band: str | None = None
+    qualitative: dict[str, str] = Field(default_factory=dict)
+
+
 class SessionAnalysisResponse(BaseModel):
     """Klinik seans değerlendirme raporu (yükleme akışı)."""
 
@@ -114,6 +127,7 @@ class SessionAnalysisResponse(BaseModel):
     audio_observation: AcousticObservation | None = None
     vision_observation: FaceObservation | None = None
     vision_pending: bool = False
+    wearable_observation: WearableObservation | None = None
     # Otomatik görüşme: ön bilgi (ÖB) bağlamı + uzman uyarısı gerektiren yanıtlar.
     preinfo: list[dict] = Field(default_factory=list)
     critical_flags: list[dict] = Field(default_factory=list)
@@ -126,6 +140,9 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     env: str
+    # Yüklü modelin izlenebilirlik kartı (git commit, sınıflar, metrikler) + kalibrasyon.
+    model_card: dict | None = None
+    model_temperature: float | None = None
 
 
 # --- Kimlik doğrulama / kullanıcı yönetimi -----------------------------------

@@ -142,6 +142,33 @@ def fit(
         logger.info(msg)
 
     logger.info("Eğitim tamamlandı. En iyi denge_doğruluk={:.3f}", max(best_metric, 0.0))
+
+    # --- Kalibrasyon + model kartı (izlenebilirlik) --------------------------
+    temperature: float | None = None
+    final_metrics: dict = {}
+    if val_loader is not None and ckpt_path.exists():
+        from .calibration import fit_temperature
+        from .evaluate import _collect, evaluate_full
+
+        model.load_state_dict(torch.load(ckpt_path, map_location=device))
+        logits, y_true = _collect(model, val_loader, device)
+        if logits.numel():
+            temperature = fit_temperature(logits, torch.tensor(y_true))
+            rep = evaluate_full(
+                model, val_loader, device, class_names=list(cfg.classes),
+                temperature=temperature,
+            )
+            final_metrics = {**rep.metrics.as_dict(), "ece": rep.ece}
+            logger.info(
+                "Kalibrasyon sıcaklığı T={:.2f} | ECE={:.3f}", temperature, rep.ece
+            )
+
+    from .checkpoint import build_model_card
+
+    card = build_model_card(
+        classes=cfg.classes, modalities=cfg.modalities, metrics=final_metrics
+    )
+    save_metadata(out_dir, cfg.classes, cfg.modalities, temperature=temperature, card=card)
     return model
 
 
