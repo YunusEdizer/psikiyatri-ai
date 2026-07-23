@@ -118,7 +118,13 @@ def generate_decision(
             "Değerlendirme tek veri kaynağına dayanıyor — çoklu modalite "
             "(ses/görüntü/giyilebilir) eklenmesi güveni artırır."
         )
-    if incongruence is not None and incongruence > _INCONGRUENCE_THRESHOLD:
+    # Uyumsuzluk yalnızca en az İKİ modalite skorlandığında anlamlıdır;
+    # tek modalitede modaliteler-arası çelişki tanımsızdır.
+    if (
+        incongruence is not None
+        and incongruence > _INCONGRUENCE_THRESHOLD
+        and len(scored_modalities) >= 2
+    ):
         findings.append(
             "Modaliteler arası belirgin uyumsuzluk saptandı (ör. söylenen içerik "
             "ile ses tonu/yüz ifadesi çelişiyor olabilir) — bastırılmış duygulanım "

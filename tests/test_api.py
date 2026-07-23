@@ -125,9 +125,10 @@ def test_session_analyze_requires_input():
         assert r.status_code == 422
 
 
-def test_session_analyze_scores_wearable_upload():
-    """Giyilebilir CSV yüklemesi gerçek füzyon modelinden geçirilmeli
-    (numpy dışında ağır bağımlılık gerektirmez)."""
+def test_session_analyze_wearable_not_fed_to_untrained_diagnosis():
+    """Giyilebilir kodlayıcı (metin-only korpusta) eğitilmediğinden tanı
+    füzyonuna VERİLMEZ; yalnız-giyilebilir yükleme rastgele kodlayıcı
+    gürültüsüyle sahte tanı üretmemeli. (bkz. ses/görüntü ile aynı ilke.)"""
     import csv
     import io
 
@@ -144,7 +145,6 @@ def test_session_analyze_scores_wearable_upload():
         r = client.post("/session/analyze", data={"pseudonym": "pid_w"}, files=files)
         assert r.status_code == 200
         body = r.json()
-        assert body["analysis_available"] is True
-        assert "wearable" in body["scored_modalities"]
-        assert body["incongruence"] is not None
-        assert len(body["modality_contributions"]) == 1
+        # Giyilebilir alındı ama tanıya karışmadı
+        assert "wearable" not in (body.get("scored_modalities") or [])
+        assert any(f["modality"] == "wearable" for f in body["received"])

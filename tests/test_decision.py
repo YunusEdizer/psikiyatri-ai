@@ -86,5 +86,12 @@ def test_doctor_note_high_risk_bumps_risk():
 
 
 def test_incongruence_finding():
-    d = _base(incongruence=0.85)
+    # Uyumsuzluk bulgusu yalnızca en az iki modalite skorlandığında üretilir.
+    d = _base(incongruence=0.85, scored_modalities=["audio", "text"])
     assert any("uyumsuzluk" in f for f in d["clinical_findings"])
+
+
+def test_incongruence_suppressed_single_modality():
+    # Tek modalitede modaliteler-arası uyumsuzluk tanımsızdır → bulgu yok.
+    d = _base(incongruence=0.85, scored_modalities=["text"])
+    assert not any("uyumsuzluk" in f for f in d["clinical_findings"])

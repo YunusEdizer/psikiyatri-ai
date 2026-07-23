@@ -217,17 +217,17 @@ def analyze_session(
         report["transcript_preview"] = masked[:500]
         report["matched_indicators"] = text_risk.matched
 
-    # 2) Derin öğrenme skorlaması. ÖNEMLİ: ses/görüntü kodlayıcıları henüz
-    #    etiketli medya ile EĞİTİLMEDİĞİNDEN (korpus metin-only) tanı füzyonuna
-    #    yalnızca eğitilmiş modaliteler (metin; + varsa giyilebilir) verilir.
-    #    Ampirik olarak doğrulandı: rastgele-başlatılmış ses kodlayıcısı metin
-    #    tanısını bozuyor (ör. depresyon 0.78 → 0.43). Ses/görüntü aşağıda
-    #    (adım 3) BETİMSEL gözlem olarak işlenir; tanıya karıştırılmaz.
-    diagnostic_paths = {k: v for k, v in media_paths.items() if k == "wearable"}
+    # 2) Derin öğrenme skorlaması. ÖNEMLİ: korpus metin-only olduğundan
+    #    ses/görüntü/giyilebilir kodlayıcılarının HİÇBİRİ eğitilmemiştir
+    #    (checkpoint bu ağırlıkları içermez; strict=False yüklemede rastgele
+    #    kalırlar). Rastgele kodlayıcıdan gerçek öznitelik geçirmek metin
+    #    tanısını bozar (ampirik: depresyon 0.78 → 0.43). Bu nedenle TANI
+    #    yalnızca eğitilmiş metin modeliyle üretilir; medya modaliteleri
+    #    tanıya karışmaz, aşağıda (adım 3) BETİMSEL gözlem olarak işlenir.
     media_result = None
-    if diagnostic_paths or has_transcript:
+    if has_transcript:
         try:
-            media_result = score_media(diagnostic_paths, transcript=masked)
+            media_result = score_media({}, transcript=masked)
         except Exception:  # noqa: BLE001 - skorlama isteği asla kesmemeli
             media_result = None
 
@@ -269,17 +269,17 @@ def analyze_session(
         probs = media_result["probabilities"]
         predicted = media_result["predicted_label"]
         top1 = float(max(probs.values()))
-        # 'kontrol' sınıfı olmayan modelde (yalnız tanı sınıfları) bulgu
-        # olasılığı en güçlü tanının olasılığıyla temsil edilir.
-        if "kontrol" in probs:
-            finding_prob = 1.0 - probs.get("kontrol", 0.0)
-        else:
-            finding_prob = top1
-            # Çekimserlik (abstention): model "sağlıklı" diyemediğinden,
-            # düşük güvenli bir tahmini tanı gibi sunmak yanıltıcı olur.
-            # Sözlük analizi de belirti bulamamışsa (bağımsız ikinci kanıt
-            # hattı boş) daha yüksek güven aranır. "Belirsiz" durumda dağılım
-            # yine gösterilir; nihai karar uzmana aittir.
+        # Risk için "bulgu olasılığı": en güçlü TANI sınıfının olasılığı.
+        # kontrol (sağlıklı) tahmininde tanı sinyali zayıftır → düşük risk;
+        # böylece "belirgin bulgu yok" + "yüksek risk" çelişkisi önlenir.
+        disorder_probs = [v for k, v in probs.items() if k != "kontrol"]
+        finding_prob = max(disorder_probs) if disorder_probs else top1
+
+        # Çekimserlik (abstention): tahmin bir TANI iken güven düşükse — ve
+        # bağımsız sözlük kanıtı da zayıfsa — sonucu "belirsiz" bildir.
+        # Kontrol sınıfı olsun olmasın uygulanır (düşük güvenli tanıyı kesin
+        # gibi sunmamak için); dağılım yine gösterilir, karar uzmana aittir.
+        if predicted != "kontrol":
             no_text_evidence = (
                 text_risk is not None
                 and "text" in media_result["scored_modalities"]

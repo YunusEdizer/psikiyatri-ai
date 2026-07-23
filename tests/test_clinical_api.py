@@ -212,6 +212,12 @@ def test_auto_interview_persists_to_patient(client):
     detail = client.get(f"/patients/{pid}", headers=headers).json()
     assert len(detail["interviews"]) == 1
 
+    # Yeniden yüklemede ön bilgi + kritik bayraklar KORUNMALI (decision JSON'undan
+    # yapılandırılmış alanlara geri çıkar).
+    stored = client.get(f"/interviews/{body['interview_id']}", headers=headers).json()
+    assert any(p["key"] == "ÖB1" for p in stored["preinfo"])
+    assert any(f["key"] == "Q6" for f in stored["critical_flags"])
+
 
 def test_auto_interview_requires_auth(client):
     r = client.post("/patients/1/interviews/auto", data={"answers": "[]"})

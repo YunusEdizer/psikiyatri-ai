@@ -60,19 +60,34 @@ class TextRiskResult:
 
 
 # Olumsuzlama belirteçleri: yüksek-risk ifadesi bir olumsuzlamayla
-# geçiyorsa (ör. "kendime zarar verme düşüncem YOK") risk bayrağı üretilmez.
-_NEGATIONS = ("yok", "yoktur", "değil", "olmadı", "olmuyor", "hiçbir zaman", "asla")
+# geçiyorsa risk bayrağı üretilmez. Türkçe olumsuzluk çoğunlukla ifadeden
+# SONRA gelir (ek/sözcük): "... yok", "... değil", "... istemiyorum".
+_NEG_AFTER = (
+    "yok", "yoktur", "değil", "olmadı", "olmuyor",
+    "istemiyorum", "istemem", "düşünmüyorum", "düşünmem", "geçmiyor",
+)
+# Az sayıda belirteç ifadeden ÖNCE gelir: "asla intihar düşünmem".
+_NEG_BEFORE = ("asla", "hiçbir zaman")
 
 
 def _is_negated(lowered: str, match_start: int, match_end: int) -> bool:
-    """Eşleşen ifadenin bulunduğu tümcecikte olumsuzlama var mı?
+    """Eşleşen yüksek-risk ifadesi aynı tümcecikte olumsuzlanmış mı?
 
-    İfadeden sonra (aynı tümcede, ~35 karakter) bir olumsuzlama belirteci
-    gelirse olumsuz kabul edilir. Türkçe olumsuzluk çoğunlukla sona gelir
-    ("... düşüncem yok", "... değil").
+    Hem ifadeden SONRAKİ pencere (ek/sözcük olumsuzlaması, ~35 krk) hem de
+    ÖNCEKİ pencere (~25 krk; "asla/hiçbir zaman") tümcecik sınırına
+    (.,;) kadar taranır. Örn. "kendime zarar verme düşüncem yok",
+    "ölmek istemiyorum", "asla intihar düşünmem" → olumsuz.
     """
-    tail = lowered[match_end : match_end + 35].split(".")[0].split(",")[0]
-    return any(neg in tail for neg in _NEGATIONS)
+    def _clause(s: str, from_end: bool) -> str:
+        for sep in (".", ",", ";"):
+            s = s.rsplit(sep, 1)[-1] if from_end else s.split(sep, 1)[0]
+        return s
+
+    tail = _clause(lowered[match_end : match_end + 35], from_end=False)
+    if any(neg in tail for neg in _NEG_AFTER):
+        return True
+    head = _clause(lowered[max(0, match_start - 25) : match_start], from_end=True)
+    return any(neg in head for neg in _NEG_BEFORE)
 
 
 def analyze_text_risk(text: str) -> TextRiskResult:

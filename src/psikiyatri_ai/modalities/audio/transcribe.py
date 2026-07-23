@@ -42,12 +42,12 @@ def _model(size: str):  # noqa: ANN202
 
 
 def is_available() -> bool:
-    """faster-whisper içe aktarılabiliyor mu?"""
+    """faster-whisper içe aktarılabiliyor (ve içe aktarımı bozuk değil) mi?"""
     try:
         import faster_whisper  # noqa: F401, PLC0415
 
         return True
-    except ImportError:
+    except Exception:  # noqa: BLE001 - ImportError + bozuk native DLL/OSError vb.
         return False
 
 

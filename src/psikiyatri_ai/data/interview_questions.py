@@ -457,6 +457,21 @@ def _compose_answer(q: InterviewQuestion, selected: str, other: str) -> str:
     return selected
 
 
+def _extract_answer(q: InterviewQuestion, a: dict) -> tuple[str, str]:
+    """Bir yanıt sözlüğünden ``(selected, composed_answer)`` döndürür.
+
+    Hem yeni ``{"id","selected","other"}`` hem de eski ``{"id","answer"}``
+    (serbest metin) formatını destekler. Eski formatta ``selected`` boştur;
+    böylece güvenlik bayrağı mantığı (``critical_flags``) eski formatta da
+    yanıt varsa bayrağı üretir (güvenli taraf).
+    """
+    if "answer" in a and "selected" not in a:
+        return "", str(a.get("answer") or "").strip()
+    selected = str(a.get("selected", "")).strip()
+    other = str(a.get("other", "")).strip()
+    return selected, _compose_answer(q, selected, other)
+
+
 def build_interview_transcript(answers: list[dict]) -> str:
     """Belirti (Q1-Q24) yanıtlarını analiz hattının beklediği transkripte çevirir.
 
@@ -471,10 +486,7 @@ def build_interview_transcript(answers: list[dict]) -> str:
         q = by_id.get(qid) if isinstance(qid, int) else None
         if q is None or q["section"] != "belirti":
             continue
-        if "answer" in a and "selected" not in a:
-            answer = str(a.get("answer") or "").strip()
-        else:
-            answer = _compose_answer(q, a.get("selected", ""), a.get("other", ""))
+        _, answer = _extract_answer(q, a)
         if not answer:
             continue
         parts.append(f"Görüşmeci: {q['text']}\nDanışan: {answer}")
@@ -493,7 +505,7 @@ def build_preinfo_summary(answers: list[dict]) -> list[dict]:
         q = by_id.get(qid) if isinstance(qid, int) else None
         if q is None or q["section"] != "on_bilgi":
             continue
-        answer = _compose_answer(q, a.get("selected", ""), a.get("other", ""))
+        _, answer = _extract_answer(q, a)
         if not answer:
             continue
         out.append({"key": q["key"], "question": q["text"], "answer": answer})
@@ -515,13 +527,13 @@ def critical_flags(answers: list[dict]) -> list[dict]:
         # uyarıları bilgilendirme notudur (risk yükseltmez).
         if q is None or q["section"] != "belirti" or not q["warn"]:
             continue
-        selected = str(a.get("selected", "")).strip()
-        other = str(a.get("other", "")).strip()
-        answer = _compose_answer(q, selected, other)
+        selected, answer = _extract_answer(q, a)
         if not answer:
             continue
+        # Eski {"answer"} formatında selected boştur → negatif-şık elemesi
+        # yapılamaz; yanıt varsa güvenli tarafta kalıp bayrağı üretiriz.
         negative = q["options"][0] if q["options"] else ""
-        if selected == negative or selected in _DECLINE:
+        if selected and (selected == negative or selected in _DECLINE):
             continue
         flags.append({"key": q["key"], "question": q["text"],
                       "answer": answer, "warn": q["warn"]})

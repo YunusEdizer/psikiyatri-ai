@@ -366,7 +366,11 @@ async def create_auto_interview(
             patient_id=patient.id,
             session_id=report["session_id"],
             evaluator_id=user.id,
-            transcript_masked=report.get("transcript_preview"),
+            # TAM maskeli transkripti sakla (transcript_preview yalnızca 500
+            # karakterlik görüntüleme kesitidir; kalıcı kayda tamamı yazılır).
+            transcript_masked=(
+                mask_pii(normalize_text(transcript)) if transcript else None
+            ),
         )
         db.add(interview)
         db.flush()
@@ -436,6 +440,14 @@ def get_interview(
     modalities = list(analysis.scored_modalities or []) if analysis else []
     if interview.transcript_masked and "text" not in modalities:
         modalities.append("text")
+    # Otomatik görüşmede ön bilgi + kritik bayraklar decision JSON'una gömülür;
+    # yeniden yüklemede yapılandırılmış alanlara geri çıkar (aksi hâlde
+    # DecisionProfile şeması bu fazladan anahtarları eler ve bağlam kaybolur).
+    stored_decision = (analysis.decision or {}) if analysis else {}
+    preinfo = stored_decision.get("preinfo", []) if isinstance(stored_decision, dict) else []
+    critical = (
+        stored_decision.get("critical_flags", []) if isinstance(stored_decision, dict) else []
+    )
     return InterviewReport(
         session_id=interview.session_id,
         created_at=interview.created_at.isoformat(timespec="seconds"),
@@ -464,6 +476,8 @@ def get_interview(
         symptom_duration_weeks=interview.symptom_duration_weeks,
         severity=interview.severity,
         decision=analysis.decision if analysis else None,
+        preinfo=preinfo,
+        critical_flags=critical,
         notes=[_note_out(db, n) for n in interview.notes],
     )
 

@@ -182,7 +182,10 @@ def _load_rows(xlsx_path: Path) -> tuple[list[str], Iterator[tuple]]:
         )
     ws = wb[DATA_SHEET]
     rows = ws.iter_rows(values_only=True)
-    header = [str(c) if c is not None else "" for c in next(rows)]
+    header_row = next(rows, None)
+    if header_row is None:
+        raise ValueError(f"'{DATA_SHEET}' sayfası boş (başlık satırı yok).")
+    header = [str(c) if c is not None else "" for c in header_row]
     return header, rows
 
 

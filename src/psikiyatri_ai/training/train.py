@@ -200,6 +200,14 @@ def main() -> None:
             logger.info(
                 "Metin ince ayarı: son {} BERTurk katmanı açık", args.unfreeze_text_layers
             )
+            # İnce ayarda yüksek varsayılan LR önceden eğitilmiş ağırlıkları
+            # bozar; --lr verilmemişse güvenli düşük bir değere çek.
+            if args.unfreeze_text_layers > 0 and args.lr is None:
+                cfg.learning_rate = 2e-5
+                logger.info(
+                    "İnce ayar için öğrenme oranı {} olarak ayarlandı (--lr ile "
+                    "değiştirilebilir).", cfg.learning_rate
+                )
         model_cfg = settings.model.model_copy(update=model_update)
         train_loader, val_loader = build_dataloaders(
             manifest,
