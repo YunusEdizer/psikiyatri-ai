@@ -50,6 +50,10 @@ class Patient(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     pseudonym: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    # Klinisyen rumuzu: YALNIZ baş harfler saklanır (to_initials ile zorlanır;
+    # ör. "A.Y."). Gerçek ad-soyad asla yazılmaz; pid↔kimlik eşlemesi kliniğin
+    # kendi kayıt sisteminde tutulur (pseudonimizasyon anahtarı ayrı ilkesi).
+    clinician_label: Mapped[str | None] = mapped_column(String(16), default=None)
     birth_year: Mapped[int | None] = mapped_column(Integer, default=None)
     gender: Mapped[str | None] = mapped_column(String(16), default=None)
     cultural_context: Mapped[str | None] = mapped_column(String(64), default=None)

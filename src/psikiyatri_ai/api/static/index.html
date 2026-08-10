@@ -262,8 +262,16 @@
                   <div><label class="lbl">Kurum içi kimlik (saklanmaz)</label>
                     <input type="text" id="np-ident" placeholder="dosya no / TC — takma-kimliğe çevrilir" />
                     <div class="hint">Boş bırakılırsa rastgele takma-kimlik üretilir.</div></div>
+                  <div><label class="lbl">Baş harfler (rumuz)</label>
+                    <input type="text" id="np-label" maxlength="64" placeholder="örn. A.Y." />
+                    <div class="hint">Gerçek ad-soyad YAZMAYIN — sistem yalnız baş harfleri saklar
+                      (tam ad yazılsa bile "A.Y." biçimine indirgenir). Ad↔kimlik eşlemesi kliniğinizin
+                      kendi kayıtlarında kalmalıdır.</div></div>
+                </div>
+                <div class="row2 field">
                   <div><label class="lbl">Doğum yılı</label>
                     <input type="number" id="np-birth" min="1900" max="2026" placeholder="örn. 1990" /></div>
+                  <div></div>
                 </div>
                 <div class="row2 field">
                   <div><label class="lbl">Cinsiyet</label>
@@ -841,7 +849,7 @@
         $("#pcount").textContent = list.length + " kayıt";
         $("#plist").innerHTML = list.length ? list.map((p) => `
           <tr class="rowlink" onclick="openPatient(${p.id})">
-            <td><b>${esc(p.pseudonym)}</b></td>
+            <td>${p.clinician_label ? `<b>${esc(p.clinician_label)}</b> <span class="hint">· ${esc(p.pseudonym.slice(0, 12))}…</span>` : `<b>${esc(p.pseudonym)}</b>`}</td>
             <td>${p.birth_year ?? "—"}</td>
             <td>${p.interview_count}</td>
             <td>${p.last_risk_level ? `<span class="badge ${sevClassOf(p.last_risk_level)}">${esc(p.last_risk_level)}</span>` : "—"}</td>
@@ -857,13 +865,14 @@
       try {
         const p = await api("/patients", { json: {
           identifier: $("#np-ident").value.trim() || null,
+          clinician_label: $("#np-label").value.trim() || null,
           birth_year: $("#np-birth").value ? parseInt($("#np-birth").value, 10) : null,
           gender: $("#np-gender").value || null,
           cultural_context: $("#np-ctx").value.trim() || null,
           referral_note: $("#np-note").value.trim() || null,
         }});
         $("#newpat-form").classList.add("hidden");
-        ["#np-ident", "#np-birth", "#np-ctx", "#np-note"].forEach((s) => ($(s).value = ""));
+        ["#np-ident", "#np-label", "#np-birth", "#np-ctx", "#np-note"].forEach((s) => ($(s).value = ""));
         toast("Hasta kaydedildi: " + p.pseudonym);
         loadPatients();
       } catch (e) { toast(e.message); }
@@ -874,8 +883,10 @@
       try {
         const p = await api("/patients/" + id);
         S.patient = p;
-        $("#pp-pseudo").textContent = p.pseudonym;
+        $("#pp-pseudo").textContent = p.clinician_label
+          ? `${p.clinician_label} · ${p.pseudonym}` : p.pseudonym;
         $("#pp-meta").innerHTML = `
+          ${p.clinician_label ? `<div><span>Rumuz (baş harfler)</span><b>${esc(p.clinician_label)}</b></div>` : ""}
           <div><span>Takma-kimlik</span><b>${esc(p.pseudonym)}</b></div>
           <div><span>Doğum yılı</span><b>${p.birth_year ?? "—"}</b></div>
           <div><span>Cinsiyet</span><b>${esc(p.gender || "—")}</b></div>

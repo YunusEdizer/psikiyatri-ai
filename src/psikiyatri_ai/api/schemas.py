@@ -184,6 +184,14 @@ class PatientCreate(BaseModel):
     identifier: str | None = Field(
         None, description="Kurum içi kimlik (saklanmaz; takma-kimliğe çevrilir)"
     )
+    clinician_label: str | None = Field(
+        None,
+        max_length=64,
+        description=(
+            "Klinisyen rumuzu — sunucuda YALNIZ baş harflere indirgenir "
+            "(ör. 'Ahmet Yılmaz' → 'A.Y.'); gerçek ad saklanmaz."
+        ),
+    )
     birth_year: int | None = Field(None, ge=1900, le=2026)
     gender: str | None = None
     cultural_context: str | None = None
@@ -193,6 +201,7 @@ class PatientCreate(BaseModel):
 class PatientOut(BaseModel):
     id: int
     pseudonym: str
+    clinician_label: str | None = None  # yalnız baş harfler (ör. "A.Y.")
     birth_year: int | None = None
     gender: str | None = None
     cultural_context: str | None = None

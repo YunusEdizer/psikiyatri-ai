@@ -49,3 +49,18 @@ def test_mask_pii_masks_titled_and_honorific_names():
     # Unvan/hitap korunur (bağlam için)
     assert "Dr." in masked
     assert "Hanım" in masked
+
+
+def test_to_initials_reduces_full_name():
+    from psikiyatri_ai.data.anonymization import to_initials
+
+    # Tam ad yazılsa bile yalnız baş harfler saklanır (KVKK güvencesi)
+    assert to_initials("Ahmet Yılmaz") == "A.Y."
+    assert to_initials("ayşe fatma kaya") == "A.F.K."
+    assert to_initials("A.Y.") == "A.Y."
+    assert to_initials("  ") == ""
+    assert to_initials("123 456") == ""  # harf yoksa boş
+    # Türkçe i → İ
+    assert to_initials("irem demir") == "İ.D."
+    # En fazla 4 belirteç
+    assert to_initials("a b c d e f") == "A.B.C.D."

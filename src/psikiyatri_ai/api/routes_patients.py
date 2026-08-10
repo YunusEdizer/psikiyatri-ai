@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..data import audit
-from ..data.anonymization import mask_pii, pseudonymize
+from ..data.anonymization import mask_pii, pseudonymize, to_initials
 from ..db.database import get_db
 from ..db.models import AnalysisResult, DoctorNote, Interview, Patient, Role, User
 from ..decision import generate_decision
@@ -74,6 +74,7 @@ def _patient_out(db: Session, patient: Patient) -> PatientOut:
     return PatientOut(
         id=patient.id,
         pseudonym=patient.pseudonym,
+        clinician_label=patient.clinician_label,
         birth_year=patient.birth_year,
         gender=patient.gender,
         cultural_context=patient.cultural_context,
@@ -127,6 +128,13 @@ def create_patient(
         )
     patient = Patient(
         pseudonym=pseudonym,
+        # KVKK: rumuz alanı sunucuda ZORLA baş harflere indirgenir; doktor
+        # tam ad yazsa bile sistemde yalnız "A.Y." biçimi saklanır.
+        clinician_label=(
+            to_initials(payload.clinician_label) or None
+            if payload.clinician_label
+            else None
+        ),
         birth_year=payload.birth_year,
         gender=payload.gender,
         cultural_context=payload.cultural_context,

@@ -84,6 +84,24 @@ def mask_pii(text: str) -> str:
     return text
 
 
+def to_initials(text: str, *, max_tokens: int = 4) -> str:
+    """Serbest metni yalnızca BAŞ HARFLERE indirger (KVKK güvencesi).
+
+    Klinisyenin hastayı ayırt etmesi için "rumuz" alanında kullanılır:
+    doktor yanlışlıkla tam ad yazsa bile sistemde yalnız baş harfler
+    saklanır (örn. "Ahmet Yılmaz" → "A.Y."). Harf içermeyen girdi boş
+    döner; en fazla ``max_tokens`` sözcüğün baş harfi alınır.
+    """
+    tokens = [t for t in re.split(r"[\s.\-_/,;]+", (text or "").strip()) if t]
+    initials = []
+    for t in tokens[:max_tokens]:
+        ch = next((c for c in t if c.isalpha()), None)
+        if ch is not None:
+            # Türkçe 'i' → 'İ' (str.upper 'I' verir; klinik görünüm için düzelt)
+            initials.append("İ" if ch == "i" else ch.upper())
+    return ".".join(initials) + ("." if initials else "")
+
+
 def anonymize_record(identifier: str, text: str | None = None) -> AnonymizationResult:
     """Bir kaydı tek adımda anonimleştirir (takma-kimlik + metin maskeleme)."""
     return AnonymizationResult(
@@ -92,4 +110,10 @@ def anonymize_record(identifier: str, text: str | None = None) -> AnonymizationR
     )
 
 
-__all__ = ["AnonymizationResult", "anonymize_record", "mask_pii", "pseudonymize"]
+__all__ = [
+    "AnonymizationResult",
+    "anonymize_record",
+    "mask_pii",
+    "pseudonymize",
+    "to_initials",
+]

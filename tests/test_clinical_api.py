@@ -254,3 +254,17 @@ def test_clinician_decision_rejects_invalid(client):
 def test_auto_interview_requires_auth(client):
     r = client.post("/patients/1/interviews/auto", data={"answers": "[]"})
     assert r.status_code == 401
+
+
+def test_patient_label_forced_to_initials(client):
+    """Doktor tam ad yazsa bile sistemde YALNIZ baş harfler saklanır (KVKK)."""
+    headers = _login(client)
+    p = client.post(
+        "/patients",
+        json={"clinician_label": "Ahmet Yılmaz", "birth_year": 1990},
+        headers=headers,
+    ).json()
+    assert p["clinician_label"] == "A.Y."  # tam ad asla saklanmaz
+    # Listede ve detayda da baş harfler döner
+    detail = client.get(f"/patients/{p['id']}", headers=headers).json()
+    assert detail["clinician_label"] == "A.Y."

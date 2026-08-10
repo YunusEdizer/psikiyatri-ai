@@ -57,17 +57,25 @@ def _apply_lightweight_migrations(engine) -> None:  # noqa: ANN001
         return
     from sqlalchemy import text
 
-    wanted = {
-        "consent": "BOOLEAN DEFAULT 0",
-        "consent_at": "VARCHAR(32)",
-        "clinician_agreement": "VARCHAR(16)",
-        "clinician_assessment": "TEXT",
+    wanted_by_table = {
+        "interviews": {
+            "consent": "BOOLEAN DEFAULT 0",
+            "consent_at": "VARCHAR(32)",
+            "clinician_agreement": "VARCHAR(16)",
+            "clinician_assessment": "TEXT",
+        },
+        "patients": {
+            "clinician_label": "VARCHAR(16)",
+        },
     }
     with engine.begin() as conn:
-        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(interviews)"))}
-        for col, ddl in wanted.items():
-            if col not in existing:
-                conn.execute(text(f"ALTER TABLE interviews ADD COLUMN {col} {ddl}"))
+        for table, wanted in wanted_by_table.items():
+            existing = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+            if not existing:  # tablo yoksa create_all zaten oluşturdu/oluşturacak
+                continue
+            for col, ddl in wanted.items():
+                if col not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
 
 
 def get_db() -> Iterator[Session]:
