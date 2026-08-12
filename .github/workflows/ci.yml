@@ -59,3 +59,24 @@ jobs:
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -e ".[dev]"
       - run: mypy src
+
+  docker-build:
+    name: Docker İmajı (üretim)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: İmajı derle (docker/Dockerfile)
+        run: docker build -f docker/Dockerfile -t psikiyatri-ai:ci .
+      - name: Duman testi — konteyner açılıyor ve /health yanıt veriyor
+        run: |
+          docker run -d --name pai -p 8020:8020 \
+            -e PAI_ENV=development \
+            psikiyatri-ai:ci
+          # Başlangıç: model yok (git'te değil) — servis uyarıyla açılır; /health yeterli
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:8020/health >/dev/null 2>&1; then
+              echo "HEALTH OK"; curl -s http://localhost:8020/health; exit 0
+            fi
+            sleep 5
+          done
+          echo "health yanıt vermedi"; docker logs pai | tail -50; exit 1
