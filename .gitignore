@@ -39,7 +39,10 @@ data/audit/
 *.pth
 *.onnx
 *.ckpt
-models/
+models/*
+# classes.json küçüktür ve model kartı/kalibrasyon içerir — git'te tutulur
+!models/classes.json
+!models/.gitkeep
 artifacts/
 mlruns/
 wandb/

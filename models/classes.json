@@ -1,0 +1,45 @@
+{
+  "classes": [
+    "kontrol",
+    "depresyon",
+    "anksiyete",
+    "sosyal_anksiyete",
+    "panik",
+    "okb",
+    "tssb",
+    "bipolar",
+    "sizofreni"
+  ],
+  "num_classes": 9,
+  "modalities": [
+    "text"
+  ],
+  "temperature": 0.5147,
+  "card": {
+    "git_commit": "14325a1",
+    "git_dirty": false,
+    "classes": [
+      "kontrol",
+      "depresyon",
+      "anksiyete",
+      "sosyal_anksiyete",
+      "panik",
+      "okb",
+      "tssb",
+      "bipolar",
+      "sizofreni"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "metrics": {
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "sensitivity": 1.0,
+      "specificity": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "ece": 0.0
+    }
+  }
+}

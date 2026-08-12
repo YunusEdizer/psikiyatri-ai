@@ -26,25 +26,35 @@ git clone https://github.com/YunusEdizer/psikiyatri-ai.git
 cd psikiyatri-ai
 ```
 
-## 2. Model dosyalarını kopyala (git'te DEĞİLDİR)
+## 2. Model dosyalarını indir (GitHub Releases)
 
-Eğitilmiş model boyut nedeniyle depoda tutulmaz. Geliştirici makinesinden
-sunucuya kopyalanmalıdır (yalnızca 2 dosya zorunlu):
+Eğitilmiş model boyutu nedeniyle git'te değildir; **Releases** sayfasına zip
+olarak eklidir (repo private — GitHub hesabınla erişirsin):
 
+**Yol A — tarayıcıdan (en kolay):**
+GitHub → repo → **Releases** → `v0.1.0` → `psikiyatri-ai-models-v0.1.0.zip`
+indir → içeriğini `models/` klasörüne çıkar.
+
+**Yol B — sunucuda komutla (gh CLI ile):**
 ```bash
-# Geliştirici makinesinden (örnek):
-scp models/psikiyatri_model.pt models/classes.json kullanici@SUNUCU_IP:~/psikiyatri-ai/models/
+# gh CLI kuruluysa (sunucuda bir kez: gh auth login)
+gh release download v0.1.0 -R YunusEdizer/psikiyatri-ai \
+   -p "psikiyatri-ai-models-*.zip" -D models/
+cd models && unzip -o psikiyatri-ai-models-*.zip && rm psikiyatri-ai-models-*.zip && cd ..
 ```
+
+Zip içeriği:
 
 | Dosya | Zorunlu mu | Not |
 |---|---|---|
-| `models/psikiyatri_model.pt` (~426 MB) | Evet | Eğitilmiş 9-sınıf model |
-| `models/classes.json` | Evet | Sınıf sırası + kalibrasyon (T) + model kartı |
-| `models/face_landmarker.task` | Hayır | Yoksa konteyner ilk açılışta otomatik indirir |
-| BERTurk / Whisper | Hayır | İlk kullanımda otomatik iner, volume'da kalıcıdır |
+| `psikiyatri_model.pt` (~426 MB) | Evet | Eğitilmiş 9-sınıf model |
+| `classes.json` | Evet* | Sınıf sırası + kalibrasyon (T) + model kartı (*artık git'te de var) |
+| `face_landmarker.task` | Hayır | Yoksa konteyner ilk açılışta otomatik indirir |
 
-> Model kopyalanmazsa servis yine açılır ama "eğitilmemiş model" uyarısıyla
-> anlamsız skor üretir — üretimde mutlaka kopyalayın.
+BERTurk / Whisper modelleri ilk kullanımda otomatik iner (volume'da kalıcı).
+
+> Model konmazsa servis yine açılır ama "eğitilmemiş model" uyarısıyla
+> anlamsız skor üretir — üretimde mutlaka indirin.
 
 ## 3. Üretim ayarlarını doldur
 
