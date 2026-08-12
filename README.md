@@ -125,6 +125,13 @@ ruff check src tests
 - Klinisyen kullanım kılavuzu: [`docs/kullanici-kilavuzu.md`](docs/kullanici-kilavuzu.md)
 - Ayrıntılı test/çalıştırma adımları: [`docs/test-rehberi.md`](docs/test-rehberi.md)
 
+## Yayına Alma (Docker + Caddy, otomatik HTTPS)
+
+Sunucuda subdomain ile yayınlamak için hazır paket: **[`DEPLOY.md`](DEPLOY.md)**.
+Özet: depoyu klonla → `models/` dosyalarını kopyala → `docker/.env` doldur →
+`cd docker && docker compose up -d --build`. Caddy, `DOMAIN` için Let's Encrypt
+sertifikasını otomatik alır (kamera/mikrofon için HTTPS zorunludur).
+
 ## Sürekli Entegrasyon (CI)
 
 Her `push` ve `pull_request`'te GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) şunları çalıştırır:

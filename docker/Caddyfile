@@ -1,0 +1,11 @@
+# Caddy — otomatik HTTPS (Let's Encrypt) + ters vekil
+# DOMAIN, docker/.env dosyasından gelir (örn. psikiyatri.siteniz.com).
+# DNS A kaydı bu sunucuya işaret ettiği sürece sertifika otomatik alınır/yenilenir.
+{$DOMAIN} {
+    reverse_proxy app:8020
+
+    # Büyük yüklemeler (görüşme video/ses kayıtları) için makul sınır
+    request_body {
+        max_size 200MB
+    }
+}

@@ -1,14 +1,47 @@
+# Psikiyatri AI — üretim yayın paketi (app + Caddy otomatik HTTPS)
+#
+# KULLANIM (sunucuda, repo kökünde):
+#   1) docker/.env.example -> docker/.env kopyala ve doldur (sırlar + DOMAIN)
+#   2) models/ klasörünü sunucuya kopyala (psikiyatri_model.pt + classes.json)
+#   3) cd docker && docker compose up -d --build
+# Ayrıntı: DEPLOY.md
+
 services:
-  api:
+  app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      PAI_ENV: development
-      PAI_LOG_LEVEL: INFO
+    restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
+    environment:
+      PAI_LOG_LEVEL: INFO
     volumes:
-      - ../models:/app/models:ro
+      # Eğitilmiş model + classes.json (git'te değildir; sunucuya kopyalanır).
+      # rw: başlangıçta face_landmarker.task eksikse konteyner indirir.
+      - ../models:/app/models
+      # Kalıcı veritabanı + denetim günlüğü (KVKK izi) — konteyner silinse de kalır
+      - ../data:/app/data
+      # BERTurk + Whisper indirme önbelleği (yeniden başlatmada tekrar inmesin)
+      - hf-cache:/cache/hf
+    # Dışarıya port açılmaz; yalnız Caddy iç ağdan erişir.
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - .env            # DOMAIN buradan gelir
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data      # Let's Encrypt sertifikaları (kalıcı)
+      - caddy-config:/config
+
+volumes:
+  hf-cache:
+  caddy-data:
+  caddy-config:

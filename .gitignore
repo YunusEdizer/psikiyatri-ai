@@ -60,3 +60,4 @@ htmlcov/
 Thumbs.db
 .DS_Store
 certs/
+docker/.env

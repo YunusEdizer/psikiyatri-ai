@@ -1,0 +1,23 @@
+# Build context'i küçük tut — bunlar imaja KOPYALANMAZ
+# (models/ ve data/ çalışma zamanında volume ile bağlanır)
+.git
+.github
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+**/__pycache__
+*.pyc
+models/
+data/
+certs/
+notebooks/
+tests/
+docs/
+docker/.env
+.env
+*.log
+*.zip
+*.pdf
+src/psikiyatri_ai.egg-info/
