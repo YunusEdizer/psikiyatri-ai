@@ -163,6 +163,12 @@ class UserCreate(BaseModel):
     role: str = Field("psikolog", pattern="^(yonetici|psikiyatrist|psikolog)$")
 
 
+class UserActiveUpdate(BaseModel):
+    """Kullanıcı aktifleştirme/pasifleştirme (kayıt onayı)."""
+
+    is_active: bool
+
+
 class UserOut(BaseModel):
     id: int
     username: str

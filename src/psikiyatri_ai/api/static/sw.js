@@ -3,8 +3,8 @@
    dataset) her zaman ağa gider — klinik veri asla önbelleklenmez (KVKK).
    Uygulama kabuğu ("/") network-first sunulur: arayüz güncellemeleri
    anında ulaşır, ağ yokken önbellekten (çevrimdışı) devam edilir. */
-const CACHE = "psikiyatri-ai-v2";
-const SHELL = ["/", "/icon.svg", "/manifest.webmanifest"];
+const CACHE = "psikiyatri-ai-v3";
+const SHELL = ["/", "/icon.svg", "/manifest.webmanifest", "/eurotech_logo.png"];
 const API_PREFIXES = [
   "/auth", "/patients", "/interview", "/session",
   "/demo", "/predict", "/audit", "/dataset",

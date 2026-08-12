@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from ..data import audit
 from ..db.database import get_db
 from ..db.models import Role, User
-from .schemas import TokenResponse, UserCreate, UserOut
+from .schemas import TokenResponse, UserActiveUpdate, UserCreate, UserOut
 from .security import (
     create_access_token,
     get_current_user,
@@ -120,6 +120,66 @@ def list_users(
 ) -> list[UserOut]:
     users = db.scalars(select(User).order_by(User.id)).all()
     return [_user_out(u) for u in users]
+
+
+# Kayıt talebiyle alınabilecek roller — yönetici hesabı yalnızca yönetici açar.
+_REGISTERABLE_ROLES = {Role.PSIKIYATRIST.value, Role.PSIKOLOG.value}
+
+
+@router.post("/register", response_model=UserOut, status_code=201)
+def register(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
+    """Hesap talebi oluşturur (ruh sağlığı uzmanları için).
+
+    Hesap **pasif** açılır; yönetici onaylayana kadar giriş yapılamaz.
+    Yönetici rolü bu uçtan talep edilemez.
+    """
+    if payload.role not in _REGISTERABLE_ROLES:
+        raise HTTPException(
+            status_code=422,
+            detail="Yalnızca psikiyatrist/psikolog hesabı talep edilebilir.",
+        )
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=422, detail="Parola en az 8 karakter olmalıdır.")
+    if db.scalar(select(User).where(User.username == payload.username)) is not None:
+        raise HTTPException(status_code=409, detail="Bu kullanıcı adı zaten kayıtlı.")
+    user = User(
+        username=payload.username,
+        full_name=payload.full_name,
+        role=payload.role,
+        password_hash=hash_password(payload.password),
+        is_active=False,  # yönetici onayı bekler
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    audit.log_event(
+        "user_registration_requested",
+        detail={"username": user.username, "role": user.role},
+    )
+    return _user_out(user)
+
+
+@router.patch("/users/{user_id}/active", response_model=UserOut)
+def set_user_active(
+    user_id: int,
+    payload: UserActiveUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.YONETICI)),
+) -> UserOut:
+    """Kullanıcıyı aktifleştirir/pasifleştirir (kayıt onayı / erişim iptali)."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
+    if user.id == admin.id:
+        raise HTTPException(status_code=422, detail="Kendi hesabınızı pasifleştiremezsiniz.")
+    user.is_active = bool(payload.is_active)
+    db.commit()
+    db.refresh(user)
+    audit.log_event(
+        "user_active_changed",
+        detail={"username": user.username, "is_active": user.is_active, "by": admin.username},
+    )
+    return _user_out(user)
 
 
 __all__ = ["router"]

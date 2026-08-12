@@ -157,6 +157,11 @@ def app_icon() -> FileResponse:
     return FileResponse(_STATIC_DIR / "icon.svg", media_type="image/svg+xml")
 
 
+@app.get("/eurotech_logo.png", include_in_schema=False)
+def brand_logo() -> FileResponse:
+    return FileResponse(_STATIC_DIR / "eurotech_logo.png", media_type="image/png")
+
+
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     settings = get_settings()

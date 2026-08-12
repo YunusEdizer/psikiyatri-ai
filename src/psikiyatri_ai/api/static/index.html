@@ -199,20 +199,46 @@
   <!-- ============ GİRİŞ ============ -->
   <div id="v-login" class="login-wrap">
     <div class="login-card">
-      <div class="brand"><div class="mark">Ψ</div></div>
+      <img src="/eurotech_logo.png" alt="Eurotech" style="display:block; margin:0 auto 6px; max-width:190px; height:auto" />
       <h1>Psikiyatri AI — Klinik Karar Destek</h1>
       <div class="sub">Psikolog ve psikiyatristler için multimodal karar destek paneli</div>
       <div id="login-err" class="login-err hidden"></div>
-      <label class="lbl">Kullanıcı adı</label>
-      <input type="text" id="l-user" autocomplete="username" />
-      <div class="field">
-        <label class="lbl">Parola</label>
-        <input type="password" id="l-pass" autocomplete="current-password" />
+
+      <!-- Giriş -->
+      <div id="login-pane">
+        <label class="lbl">Kullanıcı adı</label>
+        <input type="text" id="l-user" autocomplete="username" />
+        <div class="field">
+          <label class="lbl">Parola</label>
+          <input type="password" id="l-pass" autocomplete="current-password" />
+        </div>
+        <button class="btn" id="l-go">Giriş Yap</button>
+        <div class="login-alt">
+          <a id="l-showreg">Hesabınız yok mu? Hesap talebi oluşturun →</a>
+        </div>
       </div>
-      <button class="btn" id="l-go">Giriş Yap</button>
-      <div class="login-alt">
-        <a id="l-quick">Girişsiz hızlı analiz (kayıt tutulmaz) →</a>
+
+      <!-- Hesap talebi (uzman kaydı — yönetici onayı gerekir) -->
+      <div id="register-pane" class="hidden">
+        <div class="row2">
+          <div><label class="lbl">Ad Soyad</label>
+            <input type="text" id="r-name" autocomplete="name" placeholder="Uzm. Psk. …" /></div>
+          <div><label class="lbl">Unvan / Rol</label>
+            <select id="r-role"><option value="psikolog">Psikolog</option>
+              <option value="psikiyatrist">Psikiyatrist</option></select></div>
+        </div>
+        <div class="field"><label class="lbl">Kullanıcı adı</label>
+          <input type="text" id="r-user" autocomplete="username" placeholder="örn. psk.demir" /></div>
+        <div class="field"><label class="lbl">Parola (en az 8 karakter)</label>
+          <input type="password" id="r-pass" autocomplete="new-password" /></div>
+        <button class="btn" id="r-go">Hesap Talebi Gönder</button>
+        <div class="hint" style="margin-top:8px">Talebiniz sistem yöneticisi tarafından onaylandıktan
+          sonra giriş yapabilirsiniz.</div>
+        <div class="login-alt"><a id="l-showlogin">← Girişe dön</a></div>
       </div>
+
+      <div class="hint" style="margin-top:14px; text-align:center; opacity:.75">
+        Eurotech Bilişim A.Ş. · Eurotech-1 · Prototip (TRL6) — klinik karar desteğidir, teşhis aracı değildir.</div>
     </div>
   </div>
 
@@ -224,12 +250,12 @@
         <div><b>Psikiyatri AI</b><span>Karar Destek Sistemi</span></div>
       </div>
       <nav class="nav" id="mainnav">
-        <a data-view="patients" class="on">▤&nbsp; Hastalar</a>
+        <a data-view="patients" class="on">▤&nbsp; Hastalar / Danışanlar</a>
         <a data-view="quick">◧&nbsp; Hızlı Analiz</a>
         <a data-view="interview">◉&nbsp; Otomatik Görüşme</a>
-        <a data-view="dataset">▦&nbsp; Veri Seti</a>
+        <a data-view="dataset" id="nav-dataset" class="hidden">▦&nbsp; Veri Seti</a>
         <a data-view="admin" id="nav-admin" class="hidden">⚙&nbsp; Yönetim</a>
-        <a href="/docs" target="_blank">◱&nbsp; API / Geliştirici</a>
+        <a href="/docs" target="_blank" id="nav-api" class="hidden">◱&nbsp; API / Geliştirici</a>
       </nav>
       <div class="userbox" id="userbox">
         <div class="av" id="u-av">?</div>
@@ -238,6 +264,7 @@
       <a class="ghost no-print" id="logout" style="text-align:center">Çıkış yap</a>
       <div class="foot">
         <span class="tag">Prototip · TRL6</span><br /><br />
+        <img src="/eurotech_logo.png" alt="Eurotech" style="max-width:110px; height:auto; opacity:.85; margin-bottom:6px" /><br />
         Eurotech-1 · v0.1.0<br />Multimodal derin öğrenme
       </div>
     </aside>
@@ -254,7 +281,7 @@
           <div class="card">
             <div class="hd"><h2>Hasta Listesi</h2>
               <span class="sub" id="pcount"></span>
-              <button class="btn sm no-print" id="btn-newpat" style="margin-left:12px">+ Yeni Hasta</button>
+              <button class="btn sm no-print" id="btn-newpat" style="margin-left:12px">+ Yeni Hasta / Danışan</button>
             </div>
             <div class="bd">
               <div id="newpat-form" class="hidden" style="margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border)">
@@ -300,14 +327,14 @@
           <div class="cols">
             <div>
               <div class="card">
-                <div class="hd"><h2>Hasta Profili</h2><span class="sub" id="pp-pseudo"></span></div>
+                <div class="hd"><h2>Hasta / Danışan Profili</h2><span class="sub" id="pp-pseudo"></span></div>
                 <div class="bd">
                   <div class="repmeta" id="pp-meta"></div>
                   <div id="pp-note"></div>
                   <div class="actions no-print">
                     <button class="btn sm" id="btn-newint">+ Yeni Görüşme</button>
                     <button class="ghost sm" id="btn-autoint">◉ Otomatik Görüşme</button>
-                    <button class="ghost danger-text hidden" id="btn-delpat" style="color:var(--danger);border-color:var(--danger)">Hastayı sil (KVKK)</button>
+                    <button class="ghost danger-text hidden" id="btn-delpat" style="color:var(--danger);border-color:var(--danger)">Hastayı / danışanı sil (KVKK)</button>
                   </div>
                 </div>
               </div>
@@ -503,14 +530,13 @@
                   <div id="iv-patient-banner" class="hidden" style="margin-bottom:10px; padding:8px 12px; border-radius:8px; background:rgba(20,120,110,.10); border:1px solid rgba(20,120,110,.35); color:var(--primary); font-weight:600; font-size:.9rem"></div>
                   <div class="note">Sistem tarama sorularını sırayla ekranda gösterir ve sesli okur; danışan
                     şık seçer, gerekirse yerel (KVKK-temiz) Whisper ile sesli açıklama ekler ve
-                    görüşme boyunca kamera + mikrofon kaydı alınır. Görüşme bitiminde görüntü, ses ve metin
-                    birlikte analiz edilir. Hastaya bağlı başlatıldıysa görüşme <b>kaydedilir</b>; kayıtsız
-                    modda <b>kalıcı kayıt tutulmaz</b>.</div>
-                  <div class="row2 field">
-                    <div><label class="lbl">Danışan takma-kimliği</label>
-                      <input type="text" id="iv-pid" placeholder="örn. pid_00427" /></div>
-                    <div><label class="lbl">Değerlendiren</label>
-                      <input type="text" id="iv-ev" placeholder="Dr. …" /></div>
+                    görüşme boyunca kamera + mikrofon kaydı alınır. Görüşme bitiminde görüntü, ses ve
+                    metin birlikte analiz edilir ve <b>seçili hastanın kaydına kalıcı olarak işlenir</b>.</div>
+                  <div class="field">
+                    <label class="lbl">Danışan (hasta kaydı) <span style="color:var(--danger)">*</span></label>
+                    <select id="iv-patient"><option value="">— hasta seçin —</option></select>
+                    <div class="hint">Görüşme seçili hastanın geçmişine kaydedilir. Hasta yoksa önce
+                      “Hastalar / Danışanlar → + Yeni Hasta / Danışan” ile kayıt oluşturun.</div>
                   </div>
                   <div class="field">
                     <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer">
@@ -689,7 +715,7 @@
                 <button class="btn" id="nu-save">Kullanıcı Oluştur</button>
                 <div class="sec">
                   <label class="lbl">Kayıtlı kullanıcılar</label>
-                  <table class="tbl"><thead><tr><th>Kullanıcı</th><th>Ad</th><th>Rol</th></tr></thead>
+                  <table class="tbl"><thead><tr><th>Kullanıcı</th><th>Ad</th><th>Rol</th><th>Durum</th><th>İşlem</th></tr></thead>
                     <tbody id="ulist"></tbody></table>
                 </div>
               </div>
@@ -787,38 +813,65 @@
       $("#v-login").classList.remove("hidden");
     }
 
-    function showApp(quickOnly = false) {
+    function showApp() {
+      if (!S.user) { logout(); return; }  // ürün: girişsiz mod yok
       $("#v-login").classList.add("hidden");
       $("#app").classList.remove("hidden");
-      if (S.user) {
-        $("#u-name").textContent = S.user.full_name || S.user.username;
-        $("#u-role").textContent = roleLabel[S.user.role] || S.user.role;
-        $("#u-av").textContent = (S.user.full_name || S.user.username).slice(0, 1).toUpperCase();
-        $("#nav-admin").classList.toggle("hidden", S.user.role !== "yonetici");
-        $("#userbox").classList.remove("hidden"); $("#logout").textContent = "Çıkış yap";
-        setView("patients"); loadPatients();
-      } else {
-        // girişsiz mod: yalnızca hızlı analiz
-        $("#u-name").textContent = "Misafir"; $("#u-role").textContent = "kayıtsız mod"; $("#u-av").textContent = "M";
-        $("#nav-admin").classList.add("hidden");
-        $("#logout").textContent = "Girişe dön";
-        setView("quick");
-      }
+      const isAdmin = S.user.role === "yonetici";
+      $("#u-name").textContent = S.user.full_name || S.user.username;
+      $("#u-role").textContent = roleLabel[S.user.role] || S.user.role;
+      $("#u-av").textContent = (S.user.full_name || S.user.username).slice(0, 1).toUpperCase();
+      // Rol-bazlı gezinme: doktor = Hastalar + Hızlı Analiz + Otomatik Görüşme;
+      // yönetici ek olarak Veri Seti + Yönetim + API/Geliştirici görür.
+      $("#nav-admin").classList.toggle("hidden", !isAdmin);
+      $("#nav-dataset").classList.toggle("hidden", !isAdmin);
+      $("#nav-api").classList.toggle("hidden", !isAdmin);
+      $("#userbox").classList.remove("hidden"); $("#logout").textContent = "Çıkış yap";
+      setView("patients"); loadPatients();
     }
 
     // sayfa açılışı: geçerli oturum var mı?
     (async () => {
       if (!S.token) return;
-      try { S.user = await api("/auth/me"); S.user.role = S.user.role; showApp(); } catch { logout(); }
+      try { S.user = await api("/auth/me"); showApp(); } catch { logout(); }
     })();
 
     $("#l-go").onclick = login;
     $("#l-pass").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
-    $("#l-quick").onclick = () => { S.user = null; showApp(true); };
     $("#logout").onclick = logout;
 
+    // Hesap talebi (kayıt) — yönetici onayı gerektirir
+    $("#l-showreg").onclick = () => {
+      $("#login-pane").classList.add("hidden"); $("#register-pane").classList.remove("hidden");
+      $("#login-err").classList.add("hidden");
+    };
+    $("#l-showlogin").onclick = () => {
+      $("#register-pane").classList.add("hidden"); $("#login-pane").classList.remove("hidden");
+      $("#login-err").classList.add("hidden");
+    };
+    $("#r-go").onclick = async () => {
+      const err = $("#login-err"); err.classList.add("hidden");
+      try {
+        const res = await fetch("/auth/register", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: $("#r-user").value.trim(),
+            password: $("#r-pass").value,
+            full_name: $("#r-name").value.trim(),
+            role: $("#r-role").value,
+          }),
+        });
+        if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(
+          typeof j.detail === "string" ? j.detail : "Kayıt başarısız."); }
+        ["#r-user", "#r-pass", "#r-name"].forEach((s) => ($(s).value = ""));
+        $("#register-pane").classList.add("hidden"); $("#login-pane").classList.remove("hidden");
+        err.textContent = "✔ Talebiniz alındı. Yönetici onayından sonra giriş yapabilirsiniz.";
+        err.style.color = "var(--primary)"; err.classList.remove("hidden");
+      } catch (e) { err.textContent = e.message; err.style.color = ""; err.classList.remove("hidden"); }
+    };
+
     // ================= görünüm yönetimi =================
-    const VIEWS = { patients: "Hastalar", patient: "Hasta Profili", quick: "Hızlı Analiz", interview: "Otomatik Görüşme", dataset: "Veri Seti", admin: "Yönetim" };
+    const VIEWS = { patients: "Hastalar / Danışanlar", patient: "Hasta / Danışan Profili", quick: "Hızlı Analiz", interview: "Otomatik Görüşme", dataset: "Veri Seti", admin: "Yönetim" };
     function setView(name) {
       for (const v of Object.keys(VIEWS)) $("#v-" + v).classList.toggle("hidden", v !== name);
       $("#viewtitle").textContent = VIEWS[name];
@@ -829,12 +882,9 @@
     document.querySelectorAll("#mainnav a[data-view]").forEach((a) => {
       a.onclick = () => {
         const v = a.dataset.view;
-        if (v !== "quick" && v !== "interview" && !S.user) { toast("Bu bölüm için giriş yapmalısınız."); return; }
+        if (!S.user) { toast("Bu bölüm için giriş yapmalısınız."); return; }
         setView(v);
-        if (v === "interview") {  // nav'dan açılış = kayıtsız mod
-          IV.patientId = null;
-          const b = $("#iv-patient-banner"); if (b) b.classList.add("hidden");
-        }
+        if (v === "interview") ivPreparePicker(null);  // hasta seçici doldurulur
         if (v === "patients") loadPatients();
         if (v === "dataset") initDataset();
         if (v === "admin") { loadUsers(); loadAudit(); }
@@ -855,7 +905,7 @@
             <td>${p.last_risk_level ? `<span class="badge ${sevClassOf(p.last_risk_level)}">${esc(p.last_risk_level)}</span>` : "—"}</td>
             <td>${fmtDate(p.created_at)}</td>
           </tr>`).join("")
-          : `<tr><td colspan="5" style="color:var(--muted)">Henüz hasta kaydı yok. “+ Yeni Hasta” ile başlayın.</td></tr>`;
+          : `<tr><td colspan="5" style="color:var(--muted)">Henüz hasta/danışan kaydı yok. “+ Yeni Hasta / Danışan” ile başlayın.</td></tr>`;
       } catch (e) { toast(e.message); }
     }
 
@@ -1351,6 +1401,9 @@
 
     async function ivStart() {
       const err = $("#iv-setup-err"); err.textContent = "";
+      // Ürün kuralı: her görüşme bir hasta kaydına bağlıdır.
+      IV.patientId = parseInt($("#iv-patient").value, 10) || null;
+      if (!IV.patientId) { err.textContent = "Görüşme için bir hasta seçmelisiniz."; return; }
       if (!$("#iv-consent").checked) { err.textContent = "Görüşme için danışanın açık rızası (KVKK onamı) zorunludur."; return; }
       try {
         if (!IV.qs.length) {
@@ -1557,29 +1610,20 @@
         fd.append("answers", JSON.stringify(answers));
         if (IV.chunksV.length) fd.append("video", new Blob(IV.chunksV, { type: "video/webm" }), "gorusme-video.webm");
         if (IV.chunksA.length) fd.append("audio", new Blob(IV.chunksA, { type: "audio/webm" }), "gorusme-ses.webm");
-        // Hastaya bağlıysa auth'lu kalıcı uç; değilse kayıtsız hızlı analiz.
-        let res;
-        if (IV.patientId) {
-          fd.append("consent", "true");  // KVKK: onam ekranda alındı
-          fd.append("consent_at", IV.consentAt || new Date().toISOString());
-          res = await fetch(`/patients/${IV.patientId}/interviews/auto`, {
-            method: "POST", headers: { Authorization: "Bearer " + S.token }, body: fd,
-          });
-        } else {
-          fd.append("pseudonym", $("#iv-pid").value);
-          fd.append("evaluator", $("#iv-ev").value);
-          res = await fetch("/interview/analyze", { method: "POST", body: fd });
-        }
+        // Ürün kuralı: görüşme her zaman hastaya bağlı, kalıcı kaydedilir.
+        fd.append("consent", "true");  // KVKK: onam ekranda alındı
+        fd.append("consent_at", IV.consentAt || new Date().toISOString());
+        const res = await fetch(`/patients/${IV.patientId}/interviews/auto`, {
+          method: "POST", headers: { Authorization: "Bearer " + S.token }, body: fd,
+        });
         if (!res.ok) {
           let detail = "Sunucu hatası: " + res.status;
           try { const j = await res.json(); if (j.detail) detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch {}
           throw new Error(detail);
         }
         renderReport(await res.json(), "#iv-report", "#iv-rep-empty", "#iv-rmethod");
-        const persisted = IV.patientId
-          ? " Görüşme hasta kaydına işlendi."
-          : " Kayıtlar analiz sonrası sunucuda silindi.";
-        $("#iv-done-msg").innerHTML = "Analiz tamamlandı — rapor sağda." + persisted;
+        $("#iv-done-msg").innerHTML =
+          "Analiz tamamlandı — rapor sağda. Görüşme hasta kaydına işlendi; ham medya silindi.";
         if (IV.patientId) openPatientSilently(IV.patientId);  // görüşme geçmişini tazele
       } catch (e) {
         $("#iv-done-msg").innerHTML = "Analiz başarısız: " + esc(e.message);
@@ -1634,18 +1678,33 @@
     }
     $("#iv-rec-ans").onclick = ivRecordAnswer;
 
-    // Hasta profilinden otomatik görüşme başlat (kalıcı kayıt).
-    $("#btn-autoint").onclick = () => {
-      if (!S.patient) return;
-      IV.patientId = S.patient.id;
-      $("#iv-pid").value = S.patient.pseudonym;
-      $("#iv-ev").value = (S.user && (S.user.full_name || S.user.username)) || "";
-      $("#iv-pidwrap") && $("#iv-pidwrap").classList.add("hidden");
-      $("#iv-patient-banner") && ($("#iv-patient-banner").textContent =
-        "Hasta kaydına bağlı görüşme: " + S.patient.pseudonym, $("#iv-patient-banner").classList.remove("hidden"));
+    // Hasta seçiciyi doldur (görüşme her zaman bir hastaya bağlıdır).
+    async function ivPreparePicker(presetId) {
       $("#iv-setup").classList.remove("hidden");
       $("#iv-run").classList.add("hidden"); $("#iv-done").classList.add("hidden");
+      const sel = $("#iv-patient");
+      try {
+        const list = await api("/patients");
+        sel.innerHTML = '<option value="">— hasta seçin —</option>' + list.map((p) =>
+          `<option value="${p.id}">${esc(p.clinician_label ? p.clinician_label + " · " : "")}${esc(p.pseudonym)}</option>`
+        ).join("");
+        if (presetId) sel.value = String(presetId);
+      } catch (e) { toast(e.message); }
+      const b = $("#iv-patient-banner");
+      if (b) b.classList.add("hidden");
+    }
+
+    // Hasta profilinden otomatik görüşme başlat (hasta önceden seçili gelir).
+    $("#btn-autoint").onclick = async () => {
+      if (!S.patient) return;
       setView("interview");
+      await ivPreparePicker(S.patient.id);
+      const b = $("#iv-patient-banner");
+      if (b) {
+        b.textContent = "Hasta kaydına bağlı görüşme: " +
+          (S.patient.clinician_label ? S.patient.clinician_label + " · " : "") + S.patient.pseudonym;
+        b.classList.remove("hidden");
+      }
     };
 
     $("#iv-start").onclick = ivStart;
@@ -1750,11 +1809,29 @@
     async function loadUsers() {
       try {
         const users = await api("/auth/users");
-        $("#ulist").innerHTML = users.map((u) => `
-          <tr><td>${esc(u.username)}</td><td>${esc(u.full_name || "—")}</td>
-          <td><span class="badge role">${esc(roleLabel[u.role] || u.role)}</span></td></tr>`).join("");
+        $("#ulist").innerHTML = users.map((u) => {
+          const durum = u.is_active
+            ? '<span class="badge dusuk">aktif</span>'
+            : '<span class="badge yuksek">onay bekliyor</span>';
+          const isSelf = S.user && u.username === S.user.username;
+          const btn = isSelf ? "" : (u.is_active
+            ? `<button class="ghost sm" onclick="setUserActive(${u.id}, false)">Pasifleştir</button>`
+            : `<button class="btn sm" onclick="setUserActive(${u.id}, true)">✔ Onayla</button>`);
+          return `<tr><td>${esc(u.username)}</td><td>${esc(u.full_name || "—")}</td>
+            <td><span class="badge role">${esc(roleLabel[u.role] || u.role)}</span></td>
+            <td>${durum}</td><td>${btn}</td></tr>`;
+        }).join("");
       } catch (e) { toast(e.message); }
     }
+
+    // Kayıt onayı / erişim iptali (yalnızca yönetici)
+    window.setUserActive = async (id, active) => {
+      try {
+        await api(`/auth/users/${id}/active`, { method: "PATCH", json: { is_active: active } });
+        toast(active ? "Hesap onaylandı — kullanıcı giriş yapabilir." : "Hesap pasifleştirildi.");
+        loadUsers();
+      } catch (e) { toast(e.message); }
+    };
     $("#nu-save").onclick = async () => {
       try {
         await api("/auth/users", { json: {

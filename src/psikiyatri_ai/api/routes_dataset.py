@@ -23,9 +23,9 @@ from pydantic import BaseModel
 
 from ..config import get_settings
 from ..data import audit
-from ..db.models import User
+from ..db.models import Role, User
 from ..logging_conf import logger
-from .security import get_current_user
+from .security import require_roles
 
 router = APIRouter(prefix="/dataset", tags=["veri seti"])
 
@@ -105,7 +105,7 @@ def _preview(rec: dict) -> DatasetRecordPreview:
 
 
 @router.get("/summary", response_model=DatasetSummary)
-def dataset_summary(user: User = Depends(get_current_user)) -> DatasetSummary:
+def dataset_summary(user: User = Depends(require_roles(Role.YONETICI))) -> DatasetSummary:
     """Korpus özeti: toplam kayıt ve etiket dağılımı."""
     records = _load_records()
     counts: dict[str, int] = {}
@@ -131,7 +131,7 @@ def dataset_records(
     q: str | None = Query(None, min_length=2, description="Transkript içinde ara"),
     offset: int = Query(0, ge=0),
     limit: int = Query(25, ge=1, le=100),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(Role.YONETICI)),
 ) -> DatasetPage:
     """Sayfalı, filtrelenebilir kayıt listesi (önizleme metniyle)."""
     records = _load_records()
@@ -151,7 +151,7 @@ def dataset_records(
 
 @router.get("/records/{session_id}", response_model=DatasetRecordDetail)
 def dataset_record_detail(
-    session_id: str, user: User = Depends(get_current_user)
+    session_id: str, user: User = Depends(require_roles(Role.YONETICI))
 ) -> DatasetRecordDetail:
     """Tek kaydın tam (maskeli) transkripti; erişim denetime işlenir."""
     _load_records()

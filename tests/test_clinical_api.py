@@ -268,3 +268,53 @@ def test_patient_label_forced_to_initials(client):
     # Listede ve detayda da baş harfler döner
     detail = client.get(f"/patients/{p['id']}", headers=headers).json()
     assert detail["clinician_label"] == "A.Y."
+
+
+def test_registration_requires_admin_approval(client):
+    """Kayıt talebi pasif hesap açar; yönetici onaylayınca giriş yapılabilir."""
+    # 1) Hesap talebi (public)
+    r = client.post("/auth/register", json={
+        "username": "psk.kaya", "password": "guclu-parola-9",
+        "full_name": "Psk. Kaya", "role": "psikolog",
+    })
+    assert r.status_code == 201, r.text
+    assert r.json()["is_active"] is False
+
+    # 2) Onaysız giriş reddedilir
+    r = client.post("/auth/login", data={"username": "psk.kaya", "password": "guclu-parola-9"})
+    assert r.status_code == 401
+
+    # 3) Yönetici onaylar → giriş çalışır
+    admin = _login(client)
+    users = client.get("/auth/users", headers=admin).json()
+    uid = next(u["id"] for u in users if u["username"] == "psk.kaya")
+    r = client.patch(f"/auth/users/{uid}/active", json={"is_active": True}, headers=admin)
+    assert r.status_code == 200 and r.json()["is_active"] is True
+    r = client.post("/auth/login", data={"username": "psk.kaya", "password": "guclu-parola-9"})
+    assert r.status_code == 200
+
+
+def test_registration_rejects_admin_role(client):
+    r = client.post("/auth/register", json={
+        "username": "kotu.niyet", "password": "parola-12345", "role": "yonetici",
+    })
+    assert r.status_code == 422
+
+
+def test_admin_cannot_deactivate_self(client):
+    admin = _login(client)
+    users = client.get("/auth/users", headers=admin).json()
+    admin_id = next(u["id"] for u in users if u["username"] == "admin")
+    r = client.patch(f"/auth/users/{admin_id}/active", json={"is_active": False}, headers=admin)
+    assert r.status_code == 422
+
+
+def test_dataset_requires_admin_role(client):
+    """Veri Seti araştırma/yönetim aracıdır; doktor rolü erişemez."""
+    admin = _login(client)
+    client.post("/auth/users", json={
+        "username": "psk.veri", "password": "guclu-parola-3", "role": "psikolog",
+    }, headers=admin)
+    psk = _login(client, "psk.veri", "guclu-parola-3")
+    assert client.get("/dataset/summary", headers=psk).status_code == 403
+    assert client.get("/dataset/summary", headers=admin).status_code == 200
