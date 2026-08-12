@@ -128,15 +128,15 @@ _REGISTERABLE_ROLES = {Role.PSIKIYATRIST.value, Role.PSIKOLOG.value}
 
 @router.post("/register", response_model=UserOut, status_code=201)
 def register(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
-    """Hesap talebi oluşturur (ruh sağlığı uzmanları için).
+    """Uzman hesabı oluşturur (psikolog/psikiyatrist) — anında giriş yapılabilir.
 
-    Hesap **pasif** açılır; yönetici onaylayana kadar giriş yapılamaz.
-    Yönetici rolü bu uçtan talep edilemez.
+    Yönetici rolü bu uçtan alınamaz. Yönetici, gerekirse hesabı sonradan
+    pasifleştirebilir (erişim iptali).
     """
     if payload.role not in _REGISTERABLE_ROLES:
         raise HTTPException(
             status_code=422,
-            detail="Yalnızca psikiyatrist/psikolog hesabı talep edilebilir.",
+            detail="Yalnızca psikiyatrist/psikolog hesabı oluşturulabilir.",
         )
     if len(payload.password) < 8:
         raise HTTPException(status_code=422, detail="Parola en az 8 karakter olmalıdır.")
@@ -147,13 +147,13 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
         full_name=payload.full_name,
         role=payload.role,
         password_hash=hash_password(payload.password),
-        is_active=False,  # yönetici onayı bekler
+        is_active=True,  # anında aktif; yönetici gerekirse pasifleştirir
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     audit.log_event(
-        "user_registration_requested",
+        "user_registered",
         detail={"username": user.username, "role": user.role},
     )
     return _user_out(user)

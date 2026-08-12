@@ -214,7 +214,7 @@
         </div>
         <button class="btn" id="l-go">Giriş Yap</button>
         <div class="login-alt">
-          <a id="l-showreg">Hesabınız yok mu? Hesap talebi oluşturun →</a>
+          <a id="l-showreg">Hesabınız yok mu? Kayıt olun →</a>
         </div>
       </div>
 
@@ -231,9 +231,8 @@
           <input type="text" id="r-user" autocomplete="username" placeholder="örn. psk.demir" /></div>
         <div class="field"><label class="lbl">Parola (en az 8 karakter)</label>
           <input type="password" id="r-pass" autocomplete="new-password" /></div>
-        <button class="btn" id="r-go">Hesap Talebi Gönder</button>
-        <div class="hint" style="margin-top:8px">Talebiniz sistem yöneticisi tarafından onaylandıktan
-          sonra giriş yapabilirsiniz.</div>
+        <button class="btn" id="r-go">Kayıt Ol</button>
+        <div class="hint" style="margin-top:8px">Kayıt sonrası hemen giriş yapabilirsiniz.</div>
         <div class="login-alt"><a id="l-showlogin">← Girişe dön</a></div>
       </div>
 
@@ -863,9 +862,11 @@
         });
         if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(
           typeof j.detail === "string" ? j.detail : "Kayıt başarısız."); }
+        const u = $("#r-user").value.trim();
         ["#r-user", "#r-pass", "#r-name"].forEach((s) => ($(s).value = ""));
         $("#register-pane").classList.add("hidden"); $("#login-pane").classList.remove("hidden");
-        err.textContent = "✔ Talebiniz alındı. Yönetici onayından sonra giriş yapabilirsiniz.";
+        $("#l-user").value = u;  // kullanıcı adını girişe taşı
+        err.textContent = "✔ Kayıt tamamlandı — şimdi giriş yapabilirsiniz.";
         err.style.color = "var(--primary)"; err.classList.remove("hidden");
       } catch (e) { err.textContent = e.message; err.style.color = ""; err.classList.remove("hidden"); }
     };

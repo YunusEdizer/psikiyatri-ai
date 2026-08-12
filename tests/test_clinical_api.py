@@ -270,28 +270,26 @@ def test_patient_label_forced_to_initials(client):
     assert detail["clinician_label"] == "A.Y."
 
 
-def test_registration_requires_admin_approval(client):
-    """Kayıt talebi pasif hesap açar; yönetici onaylayınca giriş yapılabilir."""
-    # 1) Hesap talebi (public)
+def test_registration_allows_immediate_login(client):
+    """Kayıt olan uzman anında giriş yapabilir (onay adımı yok)."""
     r = client.post("/auth/register", json={
         "username": "psk.kaya", "password": "guclu-parola-9",
         "full_name": "Psk. Kaya", "role": "psikolog",
     })
     assert r.status_code == 201, r.text
-    assert r.json()["is_active"] is False
+    assert r.json()["is_active"] is True
 
-    # 2) Onaysız giriş reddedilir
     r = client.post("/auth/login", data={"username": "psk.kaya", "password": "guclu-parola-9"})
-    assert r.status_code == 401
+    assert r.status_code == 200
 
-    # 3) Yönetici onaylar → giriş çalışır
+    # Yönetici gerekirse hesabı pasifleştirebilir (erişim iptali)
     admin = _login(client)
     users = client.get("/auth/users", headers=admin).json()
     uid = next(u["id"] for u in users if u["username"] == "psk.kaya")
-    r = client.patch(f"/auth/users/{uid}/active", json={"is_active": True}, headers=admin)
-    assert r.status_code == 200 and r.json()["is_active"] is True
-    r = client.post("/auth/login", data={"username": "psk.kaya", "password": "guclu-parola-9"})
+    r = client.patch(f"/auth/users/{uid}/active", json={"is_active": False}, headers=admin)
     assert r.status_code == 200
+    r = client.post("/auth/login", data={"username": "psk.kaya", "password": "guclu-parola-9"})
+    assert r.status_code == 401
 
 
 def test_registration_rejects_admin_role(client):
